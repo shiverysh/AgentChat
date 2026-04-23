@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Any, Optional, List
 from datetime import datetime
 from uuid import uuid4, UUID
 from sqlmodel import Field
@@ -20,7 +20,7 @@ class MCPServerTable(SQLModelSerializable, table=True):
     type: str = Field(sa_column=Column(VARCHAR(255), nullable=False),
                       description="连接类型，只允许三种，sse、websocket、stdio")
     logo_url: str = Field(description="MCP Server的logo地址")
-    config: List[dict] = Field(sa_column=Column(JSON), description="配置，如apikey等")
+    config: Any = Field(sa_column=Column(JSON), description="配置，如apikey等")
     tools: List[str] = Field(default=[], sa_column=Column(JSON), description="MCP Server的工具列表")
     params: List[dict] = Field(sa_column=Column(JSON), description="输入参数")
     imported_config: Optional[dict] = Field(sa_column=Column(JSON), description="用户导入的配置参数")

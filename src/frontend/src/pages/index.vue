@@ -348,7 +348,9 @@ watch(
         </div>
       </el-col>
       <div class="content">
-        <router-view></router-view>
+        <div class="route-page">
+          <router-view />
+        </div>
       </div>
     </div>
   </div>
@@ -359,6 +361,10 @@ watch(
 @import url('https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Zhi+Mang+Xing&family=Ma+Shan+Zheng&display=swap');
 }
 .ai-body {
+  height: 100vh;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   
   .ai-nav {
@@ -647,18 +653,22 @@ watch(
   
   .ai-main {
     display: flex;
-    height: calc(100vh - 64px);
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
     background-color: #f5f7fa;
     
     :deep(.el-col-2) {
       display: flex;
       width: 180px;
       min-width: 180px;
+      min-height: 0;
     }
     
     .sidebar-content {
       display: flex;
       flex-direction: column;
+      min-height: 0;
       height: 100%;
       width: 100%;
       background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
@@ -716,11 +726,21 @@ watch(
 
     .content {
       flex: 1;
-      overflow-y: auto;
+      display: flex;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
       background-color: #ffffff;
       border-radius: 20px 0 0 0;
       margin-left: 4px;
       box-shadow: -4px 0 16px rgba(0, 0, 0, 0.05);
+    }
+
+    .route-page {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
     }
   }
 }

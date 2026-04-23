@@ -52,5 +52,29 @@
     "display_name": "博查搜索",
     "description": "帮助用户使用bocha搜索相关信息",
     "logo_url": "https://agentchat.oss-cn-beijing.aliyuncs.com/icons/tools/bocha.png"
+  },
+  {
+    "name": "mineru_parse",
+    "display_name": "MinerU解析",
+    "description": "调用 mineru-api 对上传的 PDF、DOCX、图片等文件进行高质量解析，提取结构化正文内容供后续工具继续使用",
+    "logo_url": "https://agentchat.oss-cn-beijing.aliyuncs.com/icons/tools/default.png"
+  },
+  {
+    "name": "resume_match",
+    "display_name": "简历匹配",
+    "description": "分析岗位JD与简历内容的匹配度，输出匹配优势、缺失关键词和简历修改建议",
+    "logo_url": "https://agentchat.oss-cn-beijing.aliyuncs.com/icons/tools/default.png"
+  },
+  {
+    "name": "resume_rewrite",
+    "display_name": "简历改写",
+    "description": "将简历内容或项目经历改写成更适合目标岗位投递的版本，并指出当前表达问题",
+    "logo_url": "https://agentchat.oss-cn-beijing.aliyuncs.com/icons/tools/default.png"
+  },
+  {
+    "name": "interview_followup",
+    "display_name": "面试追问",
+    "description": "围绕项目经历生成面试官高频追问、回答框架和风险提示",
+    "logo_url": "https://agentchat.oss-cn-beijing.aliyuncs.com/icons/tools/default.png"
   }
 ]

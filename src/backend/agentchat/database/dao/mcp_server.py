@@ -1,4 +1,4 @@
-from datetime import datetime
+from typing import Any
 
 from sqlmodel import Session, select, update, desc, delete, or_, func, and_
 from agentchat.database.session import session_getter
@@ -11,7 +11,7 @@ class MCPServerDao:
         cls,
         url: str,
         type: str,
-        config: dict,
+        config: Any,
         tools: list,
         params: dict,
         config_enabled: bool,

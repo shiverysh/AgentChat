@@ -8,6 +8,11 @@ import type { AgentResponse, ApiResponse } from "../../apis/agent"
 import type { HistoryListType, DialogCreateType } from "../../type"
 import histortCard from '../../components/historyCard/histortCard.vue'
 import { useHistoryChatStore } from "../../store/history_chat_msg"
+import {
+  JOB_ASSISTANT_NAME,
+  JOB_ASSISTANT_QUICK_PROMPTS,
+  isJobAssistantAgentName
+} from '../../constants/jobAssistant'
 
 const router = useRouter()
 const historyChatStore = useHistoryChatStore()
@@ -22,6 +27,12 @@ const dialogs = ref<HistoryListType[]>([])
 const agents = ref<AgentResponse[]>([])
 const loading = ref(false)
 const agentsLoading = ref(false)
+
+const featuredJobAssistant = computed(() => {
+  return agents.value.find(agent => isJobAssistantAgentName(agent.name)) || null
+})
+
+const shouldCompactAssistantPanel = computed(() => dialogs.value.length > 0)
 
 // 过滤后的会话数据
 const filteredDialogs = computed(() => {
@@ -79,6 +90,17 @@ const formatTime = (timeStr: string) => {
   }
 }
 
+const getAgentIdentifier = (agent: AgentResponse) => {
+  return String((agent as any).id || agent.agent_id)
+}
+
+const findAgentByIdentifier = (agentId: string) => {
+  return agents.value.find(agent => {
+    const currentId = getAgentIdentifier(agent)
+    return currentId === String(agentId)
+  })
+}
+
 // 获取智能体列表
 const fetchAgents = async () => {
   try {
@@ -103,6 +125,65 @@ const fetchAgents = async () => {
   } finally {
     agentsLoading.value = false
   }
+}
+
+const createDialogWithAgent = async (agent: AgentResponse, initialMessage = '') => {
+  try {
+    const dialogData: DialogCreateType = {
+      name: `与${agent.name}的对话`,
+      agent_id: getAgentIdentifier(agent),
+      agent_type: "Agent"
+    }
+
+    const response = await createDialogAPI(dialogData)
+    if (response.data.status_code !== 200) {
+      ElMessage.error(`创建会话失败: ${response.data.status_message}`)
+      return
+    }
+
+    ElMessage.success('会话创建成功')
+
+    const dialogId = response.data.data.dialog_id
+    await fetchDialogs()
+    showCreateDialog.value = false
+    selectedAgent.value = ''
+    agentSearchKeyword.value = ''
+
+    if (!dialogId) {
+      ElMessage.error('会话创建成功，但未返回会话 ID')
+      return
+    }
+
+    selectedDialog.value = dialogId
+    historyChatStore.dialogId = dialogId
+    historyChatStore.name = dialogData.name
+    historyChatStore.logo = agent.logo_url || 'https://via.placeholder.com/40x40/3b82f6/ffffff?text=AI'
+
+    router.push({
+      path: '/conversation/chatPage',
+      query: {
+        dialog_id: dialogId,
+        ...(initialMessage ? { message: initialMessage } : {})
+      }
+    })
+  } catch (error) {
+    console.error('创建会话出错:', error)
+    ElMessage.error('创建会话失败，请检查网络连接')
+  }
+}
+
+const openJobAssistant = async (initialMessage = '') => {
+  if (agents.value.length === 0) {
+    await fetchAgents()
+  }
+
+  const targetAgent = agents.value.find(agent => isJobAssistantAgentName(agent.name))
+  if (!targetAgent) {
+    ElMessage.warning(`${JOB_ASSISTANT_NAME} 尚未初始化，请先确认后端启动同步是否成功`)
+    return
+  }
+
+  await createDialogWithAgent(targetAgent, initialMessage)
 }
 
 // 获取对话列表
@@ -180,71 +261,11 @@ const createDialog = async () => {
     ElMessage.warning('请选择一个智能体')
     return
   }
-  
-  // 支持多种ID字段查找
-  const agent = agents.value.find(a => {
-    const agentIdMatch = a.agent_id === selectedAgent.value || String(a.agent_id) === String(selectedAgent.value)
-    const idMatch = (a as any).id === selectedAgent.value || String((a as any).id) === String(selectedAgent.value)
-    return agentIdMatch || idMatch
-  })
-  
+
+  const agent = findAgentByIdentifier(selectedAgent.value)
+
   if (agent) {
-    try {
-      const dialogData: DialogCreateType = {
-        name: `与${agent.name}的对话`,
-        agent_id: (agent as any).id || agent.agent_id, // 优先使用 id 字段
-        agent_type: "Agent" // 默认为普通Agent类型
-      }
-      
-      console.log('创建会话数据:', dialogData)
-      console.log('发送到后端的数据:', {
-        name: dialogData.name,
-        agent_id: dialogData.agent_id,
-        agent_type: dialogData.agent_type
-      })
-      const response = await createDialogAPI(dialogData)
-      if (response.data.status_code === 200) {
-        ElMessage.success('会话创建成功')
-        
-        // 获取新创建的会话ID
-        const dialogId = response.data.data.dialog_id
-        console.log('获取到的 dialogId:', dialogId)
-        console.log('完整的 response.data.data:', response.data.data)
-        
-        // 重新获取对话列表
-        await fetchDialogs()
-        showCreateDialog.value = false
-        selectedAgent.value = ''
-        agentSearchKeyword.value = ''
-        
-        // 跳转到新创建的会话页面
-        if (dialogId) {
-          console.log('准备跳转到会话页面，dialogId:', dialogId)
-          
-          // 更新选中的会话状态
-          selectedDialog.value = dialogId
-          
-          // 设置聊天store的状态
-          historyChatStore.dialogId = dialogId
-          historyChatStore.name = dialogData.name
-          historyChatStore.logo = agent.logo_url || 'https://via.placeholder.com/40x40/3b82f6/ffffff?text=AI'
-          
-          router.push({
-            path: '/conversation/chatPage',
-            query: {
-              dialog_id: dialogId
-            }
-          })
-        } else {
-          console.error('dialogId 为空，无法跳转')
-        }
-      } else {
-        ElMessage.error(`创建会话失败: ${response.data.status_message}`)
-      }
-    } catch (error) {
-      console.error('创建会话出错:', error)
-      ElMessage.error('创建会话失败，请检查网络连接')
-    }
+    await createDialogWithAgent(agent)
   } else {
     ElMessage.error('未找到选中的智能体')
   }
@@ -326,14 +347,11 @@ const selectAgent = (agentId: string) => {
   
   // 支持多种ID字段
   const agent = agents.value.find(a => {
-    const agentIdMatch = a.agent_id === agentId || String(a.agent_id) === String(agentId)
-    const idMatch = (a as any).id === agentId || String((a as any).id) === String(agentId)
-    return agentIdMatch || idMatch
+    return getAgentIdentifier(a) === String(agentId)
   })
   
   if (agent) {
-    // 优先使用 id 字段作为选中值
-    selectedAgent.value = (agent as any).id || agent.agent_id
+    selectedAgent.value = getAgentIdentifier(agent)
     console.log('选中智能体:', agent.name, 'ID:', selectedAgent.value)
   } else {
     console.error('未找到智能体:', agentId)
@@ -363,6 +381,34 @@ const closeCreateDialog = () => {
             <span>新建会话</span>
           </div>
         </button>
+
+        <div v-if="featuredJobAssistant" class="job-assistant-panel">
+          <div class="panel-header">
+            <span class="panel-badge">推荐场景</span>
+            <span class="panel-name">{{ JOB_ASSISTANT_NAME }}</span>
+          </div>
+          <p class="panel-description">
+            {{
+              shouldCompactAssistantPanel
+                ? '快速进入求职助手场景，保留更多空间给会话列表管理。'
+                : '直接进入岗位匹配、简历改写和面试追问场景，不需要手动配置 Agent。'
+            }}
+          </p>
+          <button class="panel-primary-btn" @click="openJobAssistant()">
+            进入求职面试助手
+          </button>
+          <div v-if="!shouldCompactAssistantPanel" class="panel-quick-list">
+            <button
+              v-for="item in JOB_ASSISTANT_QUICK_PROMPTS"
+              :key="item.label"
+              class="panel-quick-btn"
+              @click="openJobAssistant(item.prompt)"
+            >
+              <span class="quick-title">{{ item.shortLabel }}</span>
+              <span class="quick-description">{{ item.description }}</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       
@@ -404,7 +450,9 @@ const closeCreateDialog = () => {
 
     <!-- 右侧内容区域，改为路由驱动 -->
     <div class="content">
-      <router-view />
+      <div class="route-page">
+        <router-view />
+      </div>
     </div>
 
     <!-- 创建会话对话框 -->
@@ -495,7 +543,10 @@ const closeCreateDialog = () => {
                     </div>
                   </div>
                   <div class="agent-info">
-                    <div class="agent-name">{{ agent.name }}</div>
+                    <div class="agent-name">
+                      <span>{{ agent.name }}</span>
+                      <span v-if="isJobAssistantAgentName(agent.name)" class="agent-tag">推荐</span>
+                    </div>
                     <div class="agent-description">{{ agent.description }}</div>
                   </div>
                 </div>
@@ -539,12 +590,20 @@ const closeCreateDialog = () => {
 <style lang="scss" scoped>
 .conversation-main {
   display: flex;
-  height: calc(100vh - 60px);
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   background-color: #ffffff;
 
   .sidebar {
     height: 100%;
     width: 280px;
+    flex-shrink: 0;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
     background-color: #ffffff;
     border-right: 1px solid #e9ecef;
     display: flex;
@@ -552,8 +611,24 @@ const closeCreateDialog = () => {
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
 
     .create-section {
+      flex-shrink: 0;
       padding: 20px 16px 16px;
       border-bottom: 1px solid #f0f0f0;
+      max-height: min(48vh, 420px);
+      overflow-y: auto;
+
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.5);
+        border-radius: 999px;
+      }
 
       .create-btn-native {
         width: 100%;
@@ -585,6 +660,104 @@ const closeCreateDialog = () => {
           .icon {
             font-size: 18px;
             font-weight: bold;
+          }
+        }
+      }
+
+      .job-assistant-panel {
+        margin-top: 14px;
+        padding: 16px;
+        border-radius: 18px;
+        background:
+          radial-gradient(circle at top right, rgba(255, 244, 214, 0.95), transparent 34%),
+          linear-gradient(160deg, #fff8ec 0%, #f8fbff 52%, #eef5ff 100%);
+        border: 1px solid rgba(221, 188, 124, 0.45);
+        box-shadow: 0 12px 24px rgba(205, 169, 92, 0.12);
+
+        .panel-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+
+        .panel-badge {
+          padding: 4px 10px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #9a6500;
+          background: rgba(255, 237, 186, 0.9);
+          letter-spacing: 0.04em;
+        }
+
+        .panel-name {
+          font-size: 16px;
+          font-weight: 700;
+          color: #1f2937;
+        }
+
+        .panel-description {
+          margin: 0 0 14px;
+          font-size: 13px;
+          line-height: 1.55;
+          color: #4b5563;
+        }
+
+        .panel-primary-btn {
+          width: 100%;
+          height: 42px;
+          border: none;
+          border-radius: 12px;
+          background: linear-gradient(135deg, #1f6fd6 0%, #4b9fe2 100%);
+          color: white;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+          &:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 16px rgba(31, 111, 214, 0.22);
+          }
+        }
+
+        .panel-quick-list {
+          display: grid;
+          gap: 8px;
+          margin-top: 12px;
+        }
+
+        .panel-quick-btn {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          width: 100%;
+          padding: 11px 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(191, 214, 244, 0.9);
+          background: rgba(255, 255, 255, 0.78);
+          cursor: pointer;
+          text-align: left;
+          transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+
+          &:hover {
+            transform: translateY(-1px);
+            border-color: rgba(75, 159, 226, 0.75);
+            box-shadow: 0 8px 18px rgba(75, 159, 226, 0.12);
+          }
+
+          .quick-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #17345f;
+          }
+
+          .quick-description {
+            font-size: 12px;
+            line-height: 1.45;
+            color: #556377;
           }
         }
       }
@@ -631,10 +804,12 @@ const closeCreateDialog = () => {
     }
 
     .list-header {
+      flex-shrink: 0;
       padding: 16px 16px 8px;
       display: flex;
       align-items: center;
       gap: 4px;
+      background-color: #ffffff;
 
       .title {
         font-size: 14px;
@@ -650,8 +825,24 @@ const closeCreateDialog = () => {
 
     .dialog-list {
       flex: 1;
+      min-height: 0;
       padding: 0 8px;
       overflow-y: auto;
+      overscroll-behavior: contain;
+      padding-bottom: 12px;
+
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.5);
+        border-radius: 999px;
+      }
 
       .loading-state {
         display: flex;
@@ -802,6 +993,9 @@ const closeCreateDialog = () => {
 
   .content {
     flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
     background-color: #ffffff;
     border-radius: 0;
     margin: 0;
@@ -872,6 +1066,13 @@ const closeCreateDialog = () => {
         }
       }
     }
+  }
+
+  .route-page {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
   }
 }
 
@@ -965,10 +1166,22 @@ const closeCreateDialog = () => {
           flex: 1;
 
           .agent-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
             font-size: 16px;
             font-weight: 600;
             color: #1f2937;
-            margin-bottom: 4px;
+
+            .agent-tag {
+              padding: 2px 8px;
+              border-radius: 999px;
+              font-size: 11px;
+              font-weight: 700;
+              color: #8a5a00;
+              background: #fff2cf;
+            }
           }
 
           .agent-description {
@@ -1007,6 +1220,10 @@ const closeCreateDialog = () => {
   .conversation-main {
     .sidebar {
       width: 240px;
+
+      .create-section {
+        max-height: min(42vh, 340px);
+      }
     }
     
     .content {
@@ -1022,7 +1239,11 @@ const closeCreateDialog = () => {
     .sidebar {
       width: 100%;
       height: auto;
-      max-height: 300px;
+      max-height: 42vh;
+
+      .create-section {
+        max-height: none;
+      }
     }
     
     .content {

@@ -30,6 +30,7 @@ class Tools(BaseModel):
     google: dict = Field(default_factory=dict)
     delivery: dict = Field(default_factory=dict)
     bocha: dict = Field(default_factory=dict)
+    mineru: dict = Field(default_factory=dict)
 
 
 class Rag(BaseModel):

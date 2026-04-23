@@ -19,7 +19,7 @@ async def create_agent_skill(
             data=result
         )
     except Exception as err:
-        return HTTPException(status_code=500, detail=str(err))
+        raise HTTPException(status_code=500, detail=str(err))
 
 @router.post("/delete", summary="用户删除Agent Skill")
 async def delete_agent_skill(
@@ -32,7 +32,7 @@ async def delete_agent_skill(
             data=result
         )
     except Exception as err:
-        return HTTPException(status_code=500, detail=str(err))
+        raise HTTPException(status_code=500, detail=str(err))
 
 @router.get("/all", summary="获取用户当前的Agent Skill")
 async def get_agent_skills(
@@ -44,7 +44,7 @@ async def get_agent_skills(
             data=result
         )
     except Exception as err:
-        return HTTPException(status_code=500, detail=str(err))
+        raise HTTPException(status_code=500, detail=str(err))
 
 @router.post("/file/update", summary="修改Agent Skill的文件")
 async def update_agent_skill_file(
@@ -61,7 +61,7 @@ async def update_agent_skill_file(
             data=result
         )
     except Exception as err:
-        return HTTPException(status_code=500, detail=str(err))
+        raise HTTPException(status_code=500, detail=str(err))
 
 @router.post("/file/add", summary="Agent Skill新增文件")
 async def add_agent_skill_file(
@@ -74,7 +74,7 @@ async def add_agent_skill_file(
             data=result
         )
     except Exception as err:
-        return HTTPException(status_code=500, detail=str(err))
+        raise HTTPException(status_code=500, detail=str(err))
 
 @router.post("/file/upload", summary="Agent Skill新增文件")
 async def upload_agent_skill_file(
@@ -95,7 +95,7 @@ async def upload_agent_skill_file(
             data=result
         )
     except Exception as err:
-        return HTTPException(status_code=500, detail=str(err))
+        raise HTTPException(status_code=500, detail=str(err))
 
 @router.post("/file/delete", summary="删除Agent Skill的文件")
 async def delete_agent_skill_file(
@@ -108,4 +108,4 @@ async def delete_agent_skill_file(
             data=result
         )
     except Exception as err:
-        return HTTPException(status_code=500, detail=str(err))
+        raise HTTPException(status_code=500, detail=str(err))

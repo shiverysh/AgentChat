@@ -1,12 +1,19 @@
-import json
 import uuid
 
-import lark_oapi as lark
 from lark_oapi.api.calendar.v4 import *
 from pydantic import Field
-from lark_mcp.mcp_tool.calendar.primary_calendar import get_primary_calendar
-from lark_mcp.mcp_tool.calendar_event.append_calendar_event_attendees import append_calendar_event_attendee
-from lark_mcp.mcp_tool.utils.time import convert_timestamp
+
+from .append_calendar_event_attendees import append_calendar_event_attendee
+from ..utils.response import (
+    build_error_response,
+    build_lark_client,
+    build_request_option,
+    build_success_response,
+    build_user_token_required_error,
+    has_user_access_token,
+    safe_load_json_string,
+)
+from ..utils.time import convert_timestamp
 
 
 def create_calendar_event(
@@ -28,23 +35,14 @@ def create_calendar_event(
         recurrence: str = Field("FREQ=DAILY;INTERVAL=1", description="遵循日历RRule重复规则，如FREQ=DAILY;INTERVAL=1"),
         app_id: str = Field(None, description="应用唯一标识，默认从用户配置中自动获取，无需额外传参"),
         app_secret: str = Field(None, description="应用密钥，默认从用户配置中自动获取，无需额外传参"),
+        user_access_token: str = Field(None, description="飞书用户访问令牌；配置后会以用户身份创建日程。"),
 ):
     """创建飞书日程事件，日程创建成功返回日程信息，失败返回错误信息"""
-    # 创建client
-    client = lark.Client.builder() \
-        .app_id(app_id) \
-        .app_secret(app_secret) \
-        .log_level(lark.LogLevel.DEBUG) \
-        .build()
+    if not has_user_access_token(user_access_token):
+        return build_user_token_required_error("创建飞书日程")
 
-    # 获取一个公共日历
-    # try:
-    #     calendar_id = get_primary_calendar(app_id, app_secret)
-    # except Exception as err:
-    #     error_msg = str(err)
-    #     lark.logger.error(error_msg)
-    #     return error_msg
-
+    client = build_lark_client(app_id, app_secret)
+    option = build_request_option(user_access_token)
 
     # 将给的字符串时间转成时间戳
     start_timestamp = convert_timestamp(start_time)
@@ -79,63 +77,39 @@ def create_calendar_event(
         .build()
 
     # 发起请求
-    response: CreateCalendarEventResponse = client.calendar.v4.calendar_event.create(request)
+    response: CreateCalendarEventResponse = client.calendar.v4.calendar_event.create(request, option)
 
     # 处理失败返回
     if not response.success():
-        error_msg = (
-            f"client.calendar.v4.calendar_event.create failed, "
-            f"code: {response.code}, "
-            f"msg: {response.msg}, "
-            f"log_id: {response.get_log_id()}, "
-            f"resp: \n{json.dumps(json.loads(response.raw.content), indent=4, ensure_ascii=False)}"
-        )
-        lark.logger.error(error_msg)
-        return error_msg
-
-    # 基础事件信息处理
-    calendar_event_message = lark.JSON.marshal(response.data, indent=4)
-    lark.logger.info(calendar_event_message)
+        return build_error_response("client.calendar.v4.calendar_event.create", response)
 
     # 参会人处理（如果有参会人）
-    event_attendee_message = ""
+    attendee_result = None
     if attendees:
         try:
             event_id = response.data.event.event_id
-            attendee_response = append_calendar_event_attendee(
+            attendee_result = append_calendar_event_attendee(
                 app_id=app_id,
                 app_secret=app_secret,
+                user_access_token=user_access_token,
                 event_id=event_id,
                 calendar_id=calendar_id,
                 user_id_type=user_id_type,
                 attendees=attendees,
                 need_notification=need_notification
             )
-            event_attendee_message = lark.JSON.marshal(attendee_response, indent=4)
-            lark.logger.info(event_attendee_message)
         except Exception as err:
-            error_msg = f"添加参会人失败: {str(err)}"
-            lark.logger.error(error_msg)
-            # 这里根据业务需求决定：是忽略错误继续返回基础事件信息，还是直接返回错误
-            # 当前选择忽略错误继续返回，可根据实际情况调整
-            # return error_msg
+            attendee_result = {
+                "success": False,
+                "error": f"添加参会人失败: {err}",
+            }
 
-    # 返回组合结果
-    return calendar_event_message + event_attendee_message if event_attendee_message else calendar_event_message
-
-if __name__ == "__main__":
-    response = create_calendar_event(app_id="cli_a834d157e139d00d", app_secret="C8B0fhx7Pqpll9gB0zsuThhxinaaq47G", summary="测试22222", description="xxxxxxxxxxxxx",
-                          start_time="2025-09-19 12:00", end_time="2025-09-20 14:00",
-    user_id_type = "open_id",
-    need_notification = True,
-    location_name = None,
-    location_address = None,
-    calendar_id="feishu.cn_vjYauAuYvKD2Mx5ISTtRhd@group.calendar.feishu.cn",
-    attendees = ["ou_809896f3ed229a09e20474c4d1451d32"],
-    timezone = "Asia/Shanghai",
-    visibility = "default",
-    attendee_ability = "can_see_others",
-    free_busy_status = "busy",
-    recurrence = "FREQ=DAILY")
-
-    print(response)
+    return build_success_response(
+        data=response.data,
+        response=response,
+        user_access_token=user_access_token,
+        resource_name="日程",
+        extra={
+            "attendee_result": safe_load_json_string(attendee_result),
+        } if attendee_result is not None else None,
+    )

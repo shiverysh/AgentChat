@@ -1,10 +1,16 @@
-import json
-import lark_oapi as lark
 from lark_oapi.api.calendar.v4 import *
 from pydantic import Field
-from typing import Optional, List, Literal
+from typing import List
 
-from lark_mcp.mcp_tool.calendar.primary_calendar import get_primary_calendar
+from ..calendar.primary_calendar import get_primary_calendar
+from ..utils.response import (
+    build_error_response,
+    build_lark_client,
+    build_request_option,
+    build_success_response,
+    build_user_token_required_error,
+    has_user_access_token,
+)
 
 
 # 针对MCP的工具
@@ -27,17 +33,19 @@ def append_calendar_event_attendee(
         need_notification: bool = Field(True, description="更新日程时，是否给日程参与人发送通知。"),
         attendees: List[str] = Field(..., description="参会者列表，每个元素需包含用户的open_id，"),
         app_id: str = Field(None, description="应用唯一标识，默认从用户配置中自动获取，无需额外传参"),
-        app_secret: str = Field(None, description="应用密钥，默认从用户配置中自动获取，无需额外传参"), ):
+        app_secret: str = Field(None, description="应用密钥，默认从用户配置中自动获取，无需额外传参"),
+        user_access_token: str = Field(None, description="飞书用户访问令牌；配置后会以用户身份追加参会人。"),
+):
     """为日程事件添加参会者，成功返回日程信息，失败返回报错信息"""
-    client = lark.Client.builder() \
-        .app_id(app_id) \
-        .app_secret(app_secret) \
-        .log_level(lark.LogLevel.DEBUG) \
-        .build()
+    if not has_user_access_token(user_access_token):
+        return build_user_token_required_error("为飞书日程追加参会人")
+
+    client = build_lark_client(app_id, app_secret)
+    option = build_request_option(user_access_token)
 
     # 如果用户不指定日历ID，默认使用共享日历
     if not calendar_id:
-        calendar_id = get_primary_calendar(app_id, app_secret)
+        calendar_id = get_primary_calendar(app_id, app_secret, user_access_token=user_access_token)
 
     # 构造参会者列表请求体
     attendee_list = [
@@ -61,14 +69,15 @@ def append_calendar_event_attendee(
         .build()
 
     # 发起请求
-    response: CreateCalendarEventAttendeeResponse = client.calendar.v4.calendar_event_attendee.create(request)
+    response: CreateCalendarEventAttendeeResponse = client.calendar.v4.calendar_event_attendee.create(request, option)
 
     # 处理失败返回
     if not response.success():
-        fail_message = f"client.calendar.v4.calendar_event_attendee.create failed, code: {response.code}, msg: {response.msg}, log_id: {response.get_log_id()}, resp: \n{json.dumps(json.loads(response.raw.content), indent=4, ensure_ascii=False)}"
-        lark.logger.error(fail_message)
-        raise ValueError(fail_message)
+        raise ValueError(build_error_response("client.calendar.v4.calendar_event_attendee.create", response))
 
-    # 处理业务结果
-    lark.logger.info(lark.JSON.marshal(response.data, indent=4))
-    return lark.JSON.marshal(response.data, indent=4)
+    return build_success_response(
+        data=response.data,
+        response=response,
+        user_access_token=user_access_token,
+        resource_name="日程参会人",
+    )

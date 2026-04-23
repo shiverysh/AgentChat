@@ -1,11 +1,28 @@
-from typing import Type, Optional, Literal
+from typing import Optional, Literal
 from langchain.tools import tool
 from tavily import TavilyClient
 
 from agentchat.settings import app_settings
 
 
-tavily_client = TavilyClient(app_settings.tools.tavily.get("api_key"))
+tavily_client: Optional[TavilyClient] = None
+
+
+def _get_tavily_client() -> TavilyClient:
+    global tavily_client
+
+    if tavily_client is not None:
+        return tavily_client
+
+    if not app_settings.tools:
+        raise ValueError("Tavily 搜索工具尚未初始化配置。")
+
+    api_key = app_settings.tools.tavily.get("api_key")
+    if not api_key:
+        raise ValueError("Tavily 搜索工具缺少 api_key 配置。")
+
+    tavily_client = TavilyClient(api_key)
+    return tavily_client
 
 @tool("web_search", parse_docstring=True)
 def tavily_search(query: str,
@@ -28,7 +45,7 @@ def tavily_search(query: str,
 
 def _tavily_search(query, topic, max_results, time_range):
     """使用Tavily搜索工具给用户进行搜索"""
-    response = tavily_client.search(
+    response = _get_tavily_client().search(
         query=query,
         country="china",
         topic=topic,

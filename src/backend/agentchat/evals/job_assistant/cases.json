@@ -1,0 +1,98 @@
+[
+  {
+    "id": "resume_match_job_assistant",
+    "tool": "resume_match",
+    "target_role": "LLM 应用开发实习生",
+    "job_description": "岗位职责：参与大模型应用与 Agent 产品开发，负责 Prompt 设计、Tool Calling、LangChain/LangGraph 工作流编排、外部工具集成与文档理解链路建设。任职要求：熟悉 Python 和 FastAPI，了解 RAG、结构化输出、SSE 流式返回、评测与监控，具备把业务场景抽象为智能体能力的实践经验。",
+    "resume_content": "项目：求职面试助手。基于 AgentChat 二次开发求职场景 Agent，使用 Python、FastAPI、SQLModel、LangChain、LangGraph、MCP、FastMCP。封装了 resume_match、resume_rewrite、interview_followup、mineru_parse 四个 Tool，支持简历解析、岗位匹配、简历改写、面试追问。接入 MinerU 解析 PDF/DOCX，接入飞书文档和日历，同步执行轨迹并通过 SSE 返回结构化结果卡片。",
+    "expectations": {
+      "expected_keywords": ["Python", "FastAPI", "LangGraph", "Tool Calling", "MCP", "MinerU", "SSE"],
+      "expected_missing_keywords": ["评测", "监控"],
+      "expected_score_range": [55, 100],
+      "min_matched_strengths": 3,
+      "min_missing_requirements": 2,
+      "min_revision_suggestions": 3,
+      "min_interview_focus": 2,
+      "pass_threshold": 0.72
+    }
+  },
+  {
+    "id": "resume_match_api_agent",
+    "tool": "resume_match",
+    "target_role": "LLM 应用开发实习生",
+    "job_description": "岗位职责：参与 Agent 工作流搭建、多工具调用编排、RAG 检索增强与接口集成；希望候选人熟悉 Python、Prompt Engineering、Function Calling、向量检索和异常处理机制，最好了解 LangGraph 和 MCP。",
+    "resume_content": "项目：基于 LLM 的 API Agent Copilot。围绕自然语言驱动 API 调用场景，使用 Python、Flask、MongoDB、Milvus 完成候选工具召回、参数抽取、缺参补问与接口调用结果整理，实践 Prompt 调整、元数据管理和多步工具调用调试。",
+    "expectations": {
+      "expected_keywords": ["Python", "Function Calling", "Milvus", "参数抽取", "工具调用"],
+      "expected_missing_keywords": ["LangGraph", "MCP"],
+      "expected_score_range": [35, 85],
+      "min_matched_strengths": 2,
+      "min_missing_requirements": 2,
+      "min_revision_suggestions": 2,
+      "min_interview_focus": 2,
+      "pass_threshold": 0.68
+    }
+  },
+  {
+    "id": "resume_rewrite_job_assistant",
+    "tool": "resume_rewrite",
+    "target_role": "LLM 应用开发实习生",
+    "job_description": "希望候选人能做 Agent 应用开发，熟悉 LangChain/LangGraph、Prompt 设计、Tool Calling、MCP、文档解析与流式输出。",
+    "resume_content": "我做了一个求职助手项目，能上传简历，然后分析岗位匹配，修改简历，还能生成面试问题。项目后端是 Python 和 FastAPI，也做了飞书集成和文件解析。",
+    "expectations": {
+      "expected_keywords": ["LangGraph", "Tool Calling", "MCP", "文档解析", "流式输出"],
+      "source_facts": ["求职助手", "Python", "FastAPI", "飞书", "文件解析"],
+      "forbidden_keywords": ["自研大模型", "千万级用户", "训练大模型"],
+      "min_detected_issues": 2,
+      "min_rewritten_resume": 3,
+      "min_supplement_suggestions": 2,
+      "min_highlight_keywords": 3,
+      "pass_threshold": 0.72
+    }
+  },
+  {
+    "id": "resume_rewrite_api_agent",
+    "tool": "resume_rewrite",
+    "target_role": "LLM 应用开发实习生",
+    "job_description": "面向 LLM 应用开发岗位，重点关注工具调用、多步推理、向量检索和接口编排。",
+    "resume_content": "我做了一个 API Copilot 项目，能根据用户输入选择 API，提取参数并发起调用。用了 Python、MongoDB、Milvus，做了多步调用和 Prompt 调整。",
+    "expectations": {
+      "expected_keywords": ["工具调用", "参数抽取", "Milvus", "向量检索", "Prompt"],
+      "source_facts": ["API Copilot", "Python", "MongoDB", "Milvus", "Prompt"],
+      "forbidden_keywords": ["自研模型训练", "海量商业化上线"],
+      "min_detected_issues": 2,
+      "min_rewritten_resume": 3,
+      "min_supplement_suggestions": 2,
+      "min_highlight_keywords": 3,
+      "pass_threshold": 0.70
+    }
+  },
+  {
+    "id": "interview_followup_job_assistant",
+    "tool": "interview_followup",
+    "target_role": "LLM 应用开发实习生",
+    "job_description": "面试会重点考察 Agent 工作流设计、MCP 集成、文档解析、Prompt 设计、流式交互与工程化落地能力。",
+    "project_content": "项目：求职面试助手。基于 LangChain/LangGraph 和 AgentChat 完成求职场景二次开发，封装简历匹配、简历改写、面试追问和 MinerU 文档解析 Tool；接入飞书文档、飞书日历和求职工作台 MCP；通过 SSE 展示执行轨迹和结构化结果卡片。",
+    "expectations": {
+      "expected_topics": ["LangGraph", "MCP", "MinerU", "SSE", "Tool Calling"],
+      "min_questions": 3,
+      "min_deep_dive_points": 2,
+      "min_risk_points": 2,
+      "pass_threshold": 0.72
+    }
+  },
+  {
+    "id": "interview_followup_api_agent",
+    "tool": "interview_followup",
+    "target_role": "LLM 应用开发实习生",
+    "job_description": "重点考察自然语言到 API 能力映射、候选工具召回、参数抽取、多步调用异常处理和检索策略设计。",
+    "project_content": "项目：基于 LLM 的 API Agent Copilot。设计自然语言到 API 能力的映射流程，完成候选工具召回、参数抽取、缺参补问和调用结果整理，使用 MongoDB 与 Milvus 管理 API 描述和参数 schema。",
+    "expectations": {
+      "expected_topics": ["工具召回", "参数抽取", "Milvus", "异常处理", "Prompt"],
+      "min_questions": 3,
+      "min_deep_dive_points": 2,
+      "min_risk_points": 2,
+      "pass_threshold": 0.70
+    }
+  }
+]

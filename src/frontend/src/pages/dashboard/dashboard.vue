@@ -4,10 +4,15 @@
       <div class="title-wrap">
         <h2>数据看板</h2>
       </div>
-      <p class="sub">根据模型/智能体与时间范围查看调用与 Token 用量趋势</p>
+      <p class="sub">查看平台用量趋势与 Agent Eval 评测结果</p>
     </div>
 
-    <div class="filters-container">
+    <el-tabs v-model="activeTab" class="dashboard-tabs">
+      <el-tab-pane label="Agent Eval" name="eval">
+        <EvalDashboardPanel />
+      </el-tab-pane>
+      <el-tab-pane label="用量统计" name="usage">
+        <div class="filters-container">
       <div class="filter-group">
         <label>模型</label>
         <el-select
@@ -116,11 +121,13 @@
         <div class="empty" v-if="!hasTokenUsageData">暂无数据</div>
       </div>
     </div>
+      </el-tab-pane>
+    </el-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { RefreshRight } from '@element-plus/icons-vue'
 // 按需引入 ECharts，避免打包体积和解析问题
@@ -139,6 +146,10 @@ import {
   type UsageDataByDate,
   type UsageCountByDate
 } from '../../apis/usage-stats'
+import EvalDashboardPanel from './components/EvalDashboardPanel.vue'
+
+const activeTab = ref<'eval' | 'usage'>('eval')
+const usageInitialized = ref(false)
 
 // 筛选条件
 const filters = ref<UsageStatsRequest>({
@@ -503,9 +514,11 @@ const handleResize = () => {
 }
 
 // 初始化
-onMounted(async () => {
-  await nextTick()
-  
+const initUsageDashboard = async () => {
+  if (usageInitialized.value) {
+    return
+  }
+
   // 获取筛选列表
   await Promise.all([
     fetchModelsList(),
@@ -518,9 +531,29 @@ onMounted(async () => {
   
   // 加载数据
   await fetchUsageData()
-  
+
   // 监听窗口大小变化
+  usageInitialized.value = true
+}
+
+onMounted(async () => {
+  await nextTick()
+  if (activeTab.value === 'usage') {
+    await initUsageDashboard()
+  }
+
   window.addEventListener('resize', handleResize)
+})
+
+watch(activeTab, async (tab) => {
+  if (tab === 'usage') {
+    if (!usageInitialized.value) {
+      await initUsageDashboard()
+      return
+    }
+    await nextTick()
+    handleResize()
+  }
 })
 
 // 清理
@@ -544,6 +577,23 @@ onBeforeUnmount(() => {
   padding: 24px;
   background-color: #f5f7fa;
   min-height: calc(100vh - 60px);
+}
+
+.dashboard-tabs :deep(.el-tabs__header) {
+  margin-bottom: 18px;
+}
+
+.dashboard-tabs :deep(.el-tabs__nav-wrap::after) {
+  background-color: #dfe7f3;
+}
+
+.dashboard-tabs :deep(.el-tabs__item) {
+  font-weight: 600;
+  color: #72809a;
+}
+
+.dashboard-tabs :deep(.el-tabs__item.is-active) {
+  color: #1d4ed8;
 }
 
 .dashboard-header {
@@ -787,4 +837,3 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-

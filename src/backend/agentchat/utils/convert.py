@@ -5,7 +5,7 @@ from typing import List
 from langchain_core.messages import ToolCall
 from openai.types.chat import ChatCompletionMessageToolCall
 from pydantic import create_model
-from agentchat.schemas.mcp import MCPSSEConfig, MCPWebsocketConfig, MCPStreamableHttpConfig
+from agentchat.schemas.mcp import MCPSSEConfig, MCPStdioConfig, MCPWebsocketConfig, MCPStreamableHttpConfig
 
 
 def convert_langchain_tool_calls(tool_calls: List[ChatCompletionMessageToolCall]):
@@ -40,9 +40,16 @@ def convert_mcp_config(servers_info: dict | list):
                     headers=server_info.get("headers"),
                     server_name=server_info.get("server_name")
                 )
+            elif server_info.get("type") == "stdio":
+                return MCPStdioConfig(
+                    command=server_info.get("command"),
+                    args=server_info.get("args") or [],
+                    env=server_info.get("env"),
+                    cwd=server_info.get("cwd"),
+                    server_name=server_info.get("server_name"),
+                )
             else:
-                # Stdio
-                pass
+                raise ValueError(f"Unsupported MCP transport type: {server_info.get('type')}")
 
     if isinstance(servers_info, dict):
         return convert_single_mcp(servers_info)

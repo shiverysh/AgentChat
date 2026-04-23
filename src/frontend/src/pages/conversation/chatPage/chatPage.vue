@@ -1,13 +1,34 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, watch, computed } from "vue"
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { MdPreview } from "md-editor-v3"
 import "md-editor-v3/lib/style.css"
 import { sendMessage, type Chat } from "../../../apis/chat"
+import { getJobHuntWorkbenchAPI } from "../../../apis/job-hunt-workbench"
+import { getMCPServersAPI, type MCPServer } from "../../../apis/mcp-server"
 import { useHistoryChatStore } from "../../../store/history_chat_msg"
 import { useUserStore } from "../../../store/user"
 import { ElScrollbar, ElInput, ElButton, ElMessage, ElUpload, ElIcon } from "element-plus"
 import { UploadFilled, Promotion, Loading, VideoPause, Check, Close } from '@element-plus/icons-vue'
+import ExecutionTraceList from "../../../components/executionTrace/ExecutionTraceList.vue"
+import JobWorkbenchPanel from "../../../components/jobWorkbenchPanel/JobWorkbenchPanel.vue"
+import ResumeMatchCard from "../../../components/resumeMatchCard/ResumeMatchCard.vue"
+import ResumeRewriteCard from "../../../components/resumeRewriteCard/ResumeRewriteCard.vue"
+import InterviewFollowupCard from "../../../components/interviewFollowupCard/InterviewFollowupCard.vue"
+import {
+  JOB_ASSISTANT_HIGHLIGHTS,
+  JOB_ASSISTANT_NAME,
+  JOB_ASSISTANT_QUICK_PROMPTS,
+  isJobAssistantAgentName
+} from "../../../constants/jobAssistant"
+import { parseExecutionRecordFromEvent, upsertExecutionRecord } from "../../../utils/executionTrace"
+import { appendToolOutputCard, hydrateToolOutputCardsFromMessage, parseToolOutputFromEvent } from "../../../utils/toolOutput"
+import type {
+  InterviewFollowupResult,
+  JobWorkbenchData,
+  ResumeMatchResult,
+  ResumeRewriteResult,
+} from "../../../type"
 
 // Import static assets
 import defaultUserAvatar from '../../../assets/user.svg';
@@ -38,6 +59,7 @@ const historyChatStore = useHistoryChatStore()
 const userStore = useUserStore()
 const scrollbar = ref<InstanceType<typeof ElScrollbar>>()
 const route = useRoute()
+const router = useRouter()
 const abortCtrl = ref<AbortController | null>(null)
 const isCancelled = ref(false)
 // 标记是否有正在进行的事件
@@ -45,6 +67,9 @@ const hasActiveEvents = ref(false)
 // 保存上传文件的URL和文件名
 const fileUrl = ref("")
 const fileName = ref("")
+const jobWorkbench = ref<JobWorkbenchData | null>(null)
+const jobWorkbenchLoading = ref(false)
+const feishuMcpServer = ref<MCPServer | null>(null)
 
 // 事件状态管理
 const eventStatusMap = ref<Map<string, EventStatus>>(new Map())
@@ -54,6 +79,72 @@ const eventDisplayOrder = ref<string[]>([])
 const userAvatar = computed(() => userStore.userInfo?.avatar || defaultUserAvatar)
 // Get AI avatar from store or use default
 const aiAvatar = computed(() => historyChatStore.logo || defaultRobotAvatar)
+const isJobAssistantDialog = computed(() => {
+  return isJobAssistantAgentName(historyChatStore.name || "")
+})
+const inputPlaceholder = computed(() => {
+  if (isJobAssistantDialog.value) {
+    return "粘贴岗位 JD、简历内容或项目经历，我会帮你分析和改写..."
+  }
+  return "请输入您的问题..."
+})
+const uploadHeaders = computed(() => {
+  const token = localStorage.getItem('token') || ''
+  return token
+    ? {
+        Authorization: `Bearer ${token}`,
+      }
+    : {}
+})
+
+const getFeishuConfigValue = (key: string) => {
+  const config = feishuMcpServer.value?.config
+  if (!Array.isArray(config)) {
+    return ''
+  }
+
+  return config.find((item: any) => item?.key === key)?.value || ''
+}
+
+const feishuAppConfigReady = computed(() => {
+  const appId = getFeishuConfigValue('app_id')
+  const appSecret = getFeishuConfigValue('app_secret')
+  return Boolean(appId && appSecret)
+})
+
+const feishuUserTokenReady = computed(() => {
+  return Boolean(getFeishuConfigValue('user_access_token'))
+})
+
+const feishuSyncReady = computed(() => {
+  return feishuAppConfigReady.value && feishuUserTokenReady.value
+})
+
+const feishuStatusLabel = computed(() => {
+  if (!feishuMcpServer.value) {
+    return '飞书能力异常'
+  }
+  if (feishuSyncReady.value) {
+    return '飞书同步已就绪'
+  }
+  if (feishuAppConfigReady.value) {
+    return '飞书应用已连接'
+  }
+  return '飞书能力待配置'
+})
+
+const feishuStatusText = computed(() => {
+  if (!feishuMcpServer.value) {
+    return '当前未发现飞书 MCP 服务，请先确认系统 MCP 初始化是否成功。'
+  }
+  if (!feishuAppConfigReady.value) {
+    return '使用飞书文档和飞书日历前，请先在 MCP 页面填写飞书 APP_ID / APP_SECRET。'
+  }
+  if (!feishuUserTokenReady.value) {
+    return '已配置 APP_ID / APP_SECRET，但尚未配置 USER_ACCESS_TOKEN。飞书文档可能还能以应用身份执行，飞书日历/日程能力则必须使用用户身份；请到 MCP 页面补充 USER_ACCESS_TOKEN。'
+  }
+  return '已配置应用身份和用户身份，飞书文档与飞书日历会尽量同步到当前用户的个人空间。'
+})
 
 // 计算显示的事件列表
 const displayEventList = computed(() => {
@@ -62,10 +153,12 @@ const displayEventList = computed(() => {
 
 // 检查是否有活跃事件
 const checkActiveEvents = (chatItem: any) => {
-  if (!chatItem.eventInfo || chatItem.eventInfo.length === 0) {
-    return false
-  }
-  return chatItem.eventInfo.some((event: EventInfo) => event.status === 'START')
+  const hasActiveExecution = Array.isArray(chatItem.executionRecords)
+    && chatItem.executionRecords.some((record: any) => record.status === 'START')
+  const hasActiveEventInfo = Array.isArray(chatItem.eventInfo)
+    && chatItem.eventInfo.some((event: EventInfo) => event.status === 'START')
+
+  return hasActiveExecution || hasActiveEventInfo
 }
 
 const handleUploadSuccess = (response: any, file: any, fileList: any) => {
@@ -170,6 +263,235 @@ const handleEventStatus = (parsedData: any) => {
   scrollBottom()
 }
 
+const handleStructuredToolEvent = (parsedData: any) => {
+  const toolOutput = parseToolOutputFromEvent(parsedData)
+  if (!toolOutput) {
+    return false
+  }
+
+  const lastChat = historyChatStore.chatArr[historyChatStore.chatArr.length - 1]
+  if (!lastChat) {
+    return true
+  }
+
+  if (!lastChat.toolOutputs) {
+    lastChat.toolOutputs = []
+  }
+
+  lastChat.toolOutputs = appendToolOutputCard(lastChat.toolOutputs, toolOutput)
+
+  scrollBottom()
+  return true
+}
+
+const handleExecutionTraceEvent = (parsedData: any) => {
+  const executionRecord = parseExecutionRecordFromEvent(parsedData)
+  if (!executionRecord) {
+    return false
+  }
+
+  const lastChat = historyChatStore.chatArr[historyChatStore.chatArr.length - 1]
+  if (!lastChat) {
+    return true
+  }
+
+  lastChat.executionRecords = upsertExecutionRecord(
+    lastChat.executionRecords || [],
+    executionRecord,
+  )
+  hasActiveEvents.value = checkActiveEvents(lastChat)
+  scrollBottom()
+  return true
+}
+
+const handleInvalidDialog = (message = '当前会话不存在或已失效，请重新选择或创建会话') => {
+  historyChatStore.resetDialogState()
+  sendQuestion.value = true
+  abortCtrl.value = null
+  hasActiveEvents.value = false
+  fileUrl.value = ""
+  fileName.value = ""
+  ElMessage.error(message)
+  router.push({ path: '/conversation' })
+}
+
+const refreshJobWorkbench = async () => {
+  if (!isJobAssistantDialog.value) {
+    jobWorkbench.value = null
+    return
+  }
+
+  try {
+    jobWorkbenchLoading.value = true
+    const response = await getJobHuntWorkbenchAPI()
+    if (response.data.status_code === 200) {
+      jobWorkbench.value = response.data.data
+      return
+    }
+    ElMessage.error(response.data.status_message || '获取求职工作台失败')
+  } catch (error) {
+    console.error('获取求职工作台失败:', error)
+  } finally {
+    jobWorkbenchLoading.value = false
+  }
+}
+
+const refreshFeishuMcpStatus = async () => {
+  if (!isJobAssistantDialog.value) {
+    feishuMcpServer.value = null
+    return
+  }
+
+  try {
+    const response = await getMCPServersAPI()
+    if (response.data.status_code === 200 && Array.isArray(response.data.data)) {
+      feishuMcpServer.value = response.data.data.find(server => server.server_name === '飞书') || null
+    }
+  } catch (error) {
+    console.error('获取飞书 MCP 状态失败:', error)
+  }
+}
+
+const openFeishuConfigPage = () => {
+  router.push({ path: '/mcp-server' })
+}
+
+const ensureFeishuMcpReady = (featureName = '飞书功能', options?: { requireUserToken?: boolean }) => {
+  if (!feishuMcpServer.value) {
+    ElMessage.error('未检测到飞书 MCP 服务，请先重启后端并确认系统 MCP 已初始化')
+    return false
+  }
+
+  if (!feishuAppConfigReady.value) {
+    ElMessage.warning(`${featureName}需要先在 MCP 页面配置飞书 APP_ID / APP_SECRET`)
+    return false
+  }
+
+  if (!feishuUserTokenReady.value) {
+    if (options?.requireUserToken) {
+      ElMessage.warning(`${featureName}必须先在 MCP 页面配置 USER_ACCESS_TOKEN。当前飞书日历相关能力需要以用户身份调用，只有 APP_ID / APP_SECRET 不够。`)
+      return false
+    }
+
+    ElMessage.warning(`${featureName}会继续执行，但当前只配置了应用身份。飞书 API 可能成功，结果不一定出现在你的个人云文档；如需个人空间可见，请补充 USER_ACCESS_TOKEN。`)
+  }
+
+  return true
+}
+
+const formatFeishuDateTime = (value: Date) => {
+  const year = value.getFullYear()
+  const month = `${value.getMonth() + 1}`.padStart(2, '0')
+  const day = `${value.getDate()}`.padStart(2, '0')
+  const hours = `${value.getHours()}`.padStart(2, '0')
+  const minutes = `${value.getMinutes()}`.padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
+
+const buildDefaultInterviewWindow = () => {
+  const start = new Date()
+  start.setDate(start.getDate() + 1)
+  start.setHours(19, 0, 0, 0)
+
+  const end = new Date(start.getTime() + 60 * 60 * 1000)
+  return {
+    start: formatFeishuDateTime(start),
+    end: formatFeishuDateTime(end),
+  }
+}
+
+const saveResumeVersionWithMcp = (result: ResumeRewriteResult) => {
+  const rewritten = result.rewritten_resume.join('\n')
+  useQuickPrompt(
+    `请调用求职工作台 MCP，把下面这版简历改写结果保存为一个新的简历版本。标题控制在20字内，目标岗位是${result.target_role}。\n\n版本说明：${result.overall_strategy}\n\n简历内容：\n${rewritten}`,
+    true,
+  )
+}
+
+const syncResumeVersionToFeishuDoc = (result: ResumeRewriteResult) => {
+  if (!ensureFeishuMcpReady('飞书文档同步')) {
+    return
+  }
+
+  const rewritten = result.rewritten_resume.join('\n')
+  useQuickPrompt(
+    `请调用 feishu_workspace（飞书 MCP），把下面这版简历改写结果整理并同步为一篇飞书文档。文档标题控制在20字内，优先写入目标岗位、版本说明和正文；如果需要请先创建文档，再返回文档标题、document_id 和可访问链接。\n\n目标岗位：${result.target_role}\n\n版本说明：${result.overall_strategy}\n\n正文内容：\n${rewritten}`,
+    true,
+  )
+}
+
+const recordJobApplicationWithMcp = (result: ResumeMatchResult) => {
+  useQuickPrompt(
+    `请调用求职工作台 MCP，帮我记录一条岗位投递信息。岗位名称是${result.target_role}；公司名称如果未知先写“待补充”；当前状态记为待投递；匹配摘要是：${result.overall_summary}`,
+    true,
+  )
+}
+
+const createInterviewPlanWithMcp = (result: InterviewFollowupResult) => {
+  const focusPoints = result.deep_dive_points.join('；')
+  const prepActions = result.question_answer_pairs
+    .slice(0, 4)
+    .map((item, index) => `${index + 1}. ${item.question} -> ${item.answer_outline}`)
+    .join('\n')
+
+  useQuickPrompt(
+    `请调用求职工作台 MCP，基于下面内容生成一份面试准备计划。目标岗位是${result.target_role}。\n\n总结：${result.overall_summary}\n\n建议深挖：${focusPoints}\n\n准备动作：\n${prepActions}`,
+    true,
+  )
+}
+
+const saveFollowupNotesWithMcp = (result: InterviewFollowupResult) => {
+  const qaNotes = result.question_answer_pairs
+    .map((item, index) => `Q${index + 1}：${item.question}\n回答框架：${item.answer_outline}`)
+    .join('\n\n')
+
+  useQuickPrompt(
+    `请调用求职工作台 MCP，把下面这组面试追问内容保存成追问笔记，标题控制在20字内，目标岗位是${result.target_role}。\n\n总结：${result.overall_summary}\n\n追问笔记：\n${qaNotes}`,
+    true,
+  )
+}
+
+const scheduleInterviewWithFeishuCalendar = (result: InterviewFollowupResult) => {
+  if (!ensureFeishuMcpReady('飞书日历日程', { requireUserToken: true })) {
+    return
+  }
+
+  const focusPoints = result.deep_dive_points.join('；')
+  const qaNotes = result.question_answer_pairs
+    .slice(0, 4)
+    .map((item, index) => `Q${index + 1}：${item.question}\n回答框架：${item.answer_outline}`)
+    .join('\n\n')
+  const window = buildDefaultInterviewWindow()
+
+  useQuickPrompt(
+    `请调用 feishu_workspace（飞书 MCP），帮我创建一个飞书面试准备日程。如果没有合适的日历，可先创建“求职面试”日历。日程标题控制在20字内，时区使用 Asia/Shanghai，并在描述中写入准备重点和回答框架摘要。创建完成后返回 calendar_id、event_id 和时间信息。\n\n目标岗位：${result.target_role}\n\n建议时间：${window.start} 到 ${window.end}\n\n准备重点：${focusPoints}\n\n追问摘要：\n${qaNotes}`,
+    true,
+  )
+}
+
+const loadDialogHistory = async (dialogId: string, initialMessage?: string) => {
+  historyChatStore.dialogId = dialogId
+  const result = await historyChatStore.HistoryChat(dialogId)
+  if (!result?.ok) {
+    if (result?.notFound) {
+      handleInvalidDialog()
+    }
+    return
+  }
+
+  await refreshJobWorkbench()
+  await refreshFeishuMcpStatus()
+
+  scrollBottom()
+
+  if (initialMessage && typeof initialMessage === 'string') {
+    searchInput.value = initialMessage
+    nextTick(() => {
+      personQuestion()
+    })
+  }
+}
+
 // Function to handle sending a message
 const personQuestion = async () => {
   if (!historyChatStore.dialogId) {
@@ -186,6 +508,8 @@ const personQuestion = async () => {
     historyChatStore.chatArr.push({
       personMessage: { content: currentInput },
       aiMessage: { content: "" }, // 设置初始空内容，后续会被chunks累加
+      toolOutputs: [],
+      executionRecords: [],
       eventInfo: [] // 初始化事件信息数组
     })
     scrollBottom()
@@ -237,12 +561,20 @@ const personQuestion = async () => {
               scrollBottom()
               // console.log('【Chunk接收】当前累加内容:', lastMessage.aiMessage.content) // 调试用
             } else if (parsedData.type === 'event') {
+              if (handleExecutionTraceEvent(parsedData)) {
+                return
+              }
+              if (handleStructuredToolEvent(parsedData)) {
+                return
+              }
               // 处理事件消息
               handleEventStatus(parsedData)
             } else if (parsedData.type === 'knowledge') {
               historyChatStore.chatArr.push({
                 personMessage: { content: '' },
                 aiMessage: { content: '[知识库检索结果]\n' + (parsedData.data.message || ''), type: 'knowledge' },
+                toolOutputs: [],
+                executionRecords: [],
                 eventInfo: []
               })
               scrollBottom()
@@ -250,6 +582,8 @@ const personQuestion = async () => {
               historyChatStore.chatArr.push({
                 personMessage: { content: '' },
                 aiMessage: { content: '[错误]\n' + (parsedData.data.message || ''), type: 'error' },
+                toolOutputs: [],
+                executionRecords: [],
                 eventInfo: []
               })
               scrollBottom()
@@ -260,6 +594,8 @@ const personQuestion = async () => {
               historyChatStore.chatArr.push({
                 personMessage: { content: '' },
                 aiMessage: { content: '[系统消息]\n' + JSON.stringify(parsedData.data), type: 'system' },
+                toolOutputs: [],
+                executionRecords: [],
                 eventInfo: []
               })
               scrollBottom()
@@ -269,10 +605,31 @@ const personQuestion = async () => {
           }
         },
         () => {
+          const lastMessage = historyChatStore.chatArr[historyChatStore.chatArr.length - 1]
+          if (lastMessage) {
+            hydrateToolOutputCardsFromMessage(lastMessage)
+          }
           sendQuestion.value = true
           abortCtrl.value = null
           hasActiveEvents.value = false
           // 清空文件URL和文件名
+          fileUrl.value = ""
+          fileName.value = ""
+          void refreshJobWorkbench()
+        },
+        (error: any) => {
+          const errorMessage = error?.message || '发送消息失败，请重试'
+          const status = error?.status
+
+          if (status === 404 || errorMessage.includes('当前会话不存在') || errorMessage.includes('当前会话绑定的智能体不存在')) {
+            handleInvalidDialog(errorMessage)
+            return
+          }
+
+          ElMessage.error(errorMessage)
+          sendQuestion.value = true
+          abortCtrl.value = null
+          hasActiveEvents.value = false
           fileUrl.value = ""
           fileName.value = ""
         }
@@ -310,24 +667,38 @@ const toggleEventInfo = (event: EventInfo) => {
   event.show = !event.show
 }
 
+const useQuickPrompt = (prompt: string, autoSend = false) => {
+  if (!sendQuestion.value) {
+    ElMessage.warning("当前正在生成回答，请稍后再试")
+    return
+  }
+
+  searchInput.value = prompt
+  if (autoSend) {
+    nextTick(() => {
+      personQuestion()
+    })
+  }
+}
+
+const useJobAssistantQuickPrompt = (
+  item: { prompt: string; requiresFeishu?: boolean; requiresFeishuUserToken?: boolean },
+  autoSend = false,
+) => {
+  if (item.requiresFeishu && !ensureFeishuMcpReady('飞书文档/日历功能', { requireUserToken: item.requiresFeishuUserToken })) {
+    return
+  }
+
+  useQuickPrompt(item.prompt, autoSend)
+}
+
 // Load history on mount
 onMounted(() => {
   const dialog_id = route.query.dialog_id
   const message = route.query.message
   
   if (dialog_id) {
-    historyChatStore.dialogId = dialog_id as string
-    historyChatStore.HistoryChat(dialog_id as string).then(() => {
-        scrollBottom()
-        
-        // 如果有来自首页的搜索消息，自动发送
-        if (message && typeof message === 'string') {
-          searchInput.value = message
-          nextTick(() => {
-            personQuestion()
-          })
-        }
-    })
+    void loadDialogHistory(dialog_id as string, typeof message === 'string' ? message : undefined)
   } else if (message && typeof message === 'string') {
     // 新会话，直接发送首页的搜索消息
     searchInput.value = message
@@ -342,21 +713,24 @@ watch(
   () => route.query.dialog_id,
   (newVal, oldVal) => {
     if (newVal && newVal !== oldVal) {
-      historyChatStore.dialogId = newVal as string
-      historyChatStore.HistoryChat(newVal as string).then(() => {
-        scrollBottom()
-        
-        // 如果有来自首页的搜索消息，自动发送
-        const message = route.query.message
-        if (message && typeof message === 'string') {
-          searchInput.value = message
-          nextTick(() => {
-            personQuestion()
-          })
-        }
-      })
+      const message = route.query.message
+      void loadDialogHistory(newVal as string, typeof message === 'string' ? message : undefined)
     }
   }
+)
+
+watch(
+  () => isJobAssistantDialog.value,
+  (enabled) => {
+    if (enabled) {
+      void refreshJobWorkbench()
+      void refreshFeishuMcpStatus()
+      return
+    }
+    jobWorkbench.value = null
+    feishuMcpServer.value = null
+  },
+  { immediate: true }
 )
 
 // Watch for new messages to scroll down
@@ -374,6 +748,65 @@ watch(
   <div class="chat-container">
     <div class="chat-conversation">
       <el-scrollbar ref="scrollbar">
+        <div
+          v-if="isJobAssistantDialog && historyChatStore.chatArr.length === 0"
+          class="job-assistant-hero"
+        >
+          <div class="hero-head">
+            <span class="hero-badge">{{ JOB_ASSISTANT_NAME }}</span>
+            <h2>把岗位分析、简历改写和面试准备放进一个会话里完成</h2>
+            <p>
+              建议先贴岗位 JD 和你的项目经历，再继续追问简历表达、面试追问和回答框架。
+            </p>
+          </div>
+
+          <div class="hero-highlight-list">
+            <div
+              v-for="item in JOB_ASSISTANT_HIGHLIGHTS"
+              :key="item"
+              class="hero-highlight-item"
+            >
+              <span class="highlight-marker"></span>
+              <span>{{ item }}</span>
+            </div>
+          </div>
+
+          <div class="integration-note" :class="{ ready: feishuAppConfigReady }">
+            <span class="integration-note-label">
+              {{ feishuStatusLabel }}
+            </span>
+            <span class="integration-note-text">{{ feishuStatusText }}</span>
+            <button
+              v-if="!feishuSyncReady"
+              type="button"
+              class="integration-note-btn"
+              @click="openFeishuConfigPage"
+            >
+              去配置
+            </button>
+          </div>
+
+          <div class="hero-prompt-grid">
+            <button
+              v-for="item in JOB_ASSISTANT_QUICK_PROMPTS"
+              :key="item.label"
+              class="hero-prompt-card"
+              @click="useJobAssistantQuickPrompt(item, true)"
+            >
+              <span class="prompt-card-title">{{ item.label }}</span>
+              <span class="prompt-card-description">{{ item.description }}</span>
+              <span class="prompt-card-action">直接发起</span>
+            </button>
+          </div>
+        </div>
+
+        <JobWorkbenchPanel
+          v-if="isJobAssistantDialog"
+          :data="jobWorkbench"
+          :loading="jobWorkbenchLoading"
+          @refresh="refreshJobWorkbench"
+        />
+
         <!-- 聊天消息区 -->
         <div v-for="(item, index) in historyChatStore.chatArr" :key="index" class="message-group">
           <!-- User Message -->
@@ -385,9 +818,20 @@ watch(
           </div>
           
           <!-- AI Message -->
-          <div v-if="item.aiMessage.content || (!sendQuestion && index === historyChatStore.chatArr.length - 1)" class="ai-message" :class="item.aiMessage.type ? 'ai-message-' + item.aiMessage.type : ''">
+          <div
+            v-if="item.aiMessage.content || item.toolOutputs?.length || item.executionRecords?.length || (!sendQuestion && index === historyChatStore.chatArr.length - 1)"
+            class="ai-message"
+            :class="[
+              item.aiMessage.type ? 'ai-message-' + item.aiMessage.type : '',
+              item.toolOutputs?.length || item.executionRecords?.length ? 'has-tool-output' : ''
+            ]"
+          >
             <img :src="aiAvatar" alt="AI Avatar" class="avatar" />
             <div class="message-content">
+              <ExecutionTraceList
+                v-if="item.executionRecords?.length"
+                :records="item.executionRecords"
+              />
               <!-- 事件进度信息，每个事件一行，可折叠 -->
               <div v-if="item.eventInfo && item.eventInfo.length" class="event-info-list">
                 <div v-for="(event, evIdx) in item.eventInfo" :key="evIdx" class="event-info-row" :class="event.status">
@@ -411,7 +855,33 @@ watch(
               <div v-if="!item.aiMessage.content && !sendQuestion && index === historyChatStore.chatArr.length - 1 && !hasActiveEvents" class="loading-spinner">
                   <el-icon class="is-loading" :size="20"><Loading /></el-icon>
               </div>
-              <template v-else>
+              <div v-if="item.toolOutputs?.length" class="tool-output-list">
+                <template v-for="(toolOutput, toolIdx) in item.toolOutputs" :key="`${index}-tool-${toolIdx}`">
+                  <ResumeMatchCard
+                    v-if="toolOutput.type === 'resume_match'"
+                    :result="toolOutput.payload"
+                    @record-application="recordJobApplicationWithMcp"
+                  />
+                  <ResumeRewriteCard
+                    v-else-if="toolOutput.type === 'resume_rewrite'"
+                    :result="toolOutput.payload"
+                    @save-version="saveResumeVersionWithMcp"
+                    @sync-feishu-doc="syncResumeVersionToFeishuDoc"
+                  />
+                  <InterviewFollowupCard
+                    v-else-if="toolOutput.type === 'interview_followup'"
+                    :result="toolOutput.payload"
+                    @create-plan="createInterviewPlanWithMcp"
+                    @save-notes="saveFollowupNotesWithMcp"
+                    @create-calendar="scheduleInterviewWithFeishuCalendar"
+                  />
+                </template>
+              </div>
+              <div
+                v-if="item.aiMessage.content"
+                class="text-response"
+                :class="{ 'after-tool-output': item.toolOutputs?.length || item.executionRecords?.length }"
+              >
                 <div v-if="item.aiMessage.type === 'knowledge'" style="color: #409eff;">
                   <MdPreview :editorId="'ai-knowledge-' + index" :modelValue="item.aiMessage.content" />
                 </div>
@@ -425,7 +895,7 @@ watch(
                   <MdPreview :editorId="'ai-system-' + index" :modelValue="item.aiMessage.content" />
                 </div>
                 <MdPreview v-else :editorId="'ai-' + index" :modelValue="item.aiMessage.content" />
-              </template>
+              </div>
             </div>
           </div>
         </div>
@@ -435,6 +905,7 @@ watch(
     <div class="input-area">
       <el-upload
         action="/api/v1/upload"
+        :headers="uploadHeaders"
         :on-success="handleUploadSuccess"
         :on-error="handleUploadError"
         :show-file-list="false"
@@ -445,6 +916,23 @@ watch(
         </el-button>
       </el-upload>
       <div class="input-wrapper">
+        <div v-if="isJobAssistantDialog" class="quick-input-bar">
+          <span class="quick-input-label">快捷输入</span>
+          <button
+            v-for="item in JOB_ASSISTANT_QUICK_PROMPTS"
+            :key="item.label"
+            class="quick-input-chip"
+            @click="useJobAssistantQuickPrompt(item)"
+          >
+            {{ item.shortLabel }}
+          </button>
+        </div>
+        <div v-if="isJobAssistantDialog && !feishuSyncReady" class="quick-integration-tip">
+          <span>{{ feishuStatusText }}</span>
+          <button type="button" class="quick-integration-btn" @click="openFeishuConfigPage">
+            去配置
+          </button>
+        </div>
         <!-- 已上传文件显示 -->
         <div v-if="fileUrl" class="uploaded-file-tag">
           <span class="file-avatar" aria-hidden="true">
@@ -462,7 +950,7 @@ watch(
           v-model="searchInput"
           type="textarea"
           :autosize="{ minRows: 1, maxRows: 4 }"
-          placeholder="请输入您的问题..."
+          :placeholder="inputPlaceholder"
           @keydown.enter.exact.prevent="personQuestion"
           class="message-input"
         />
@@ -494,6 +982,164 @@ watch(
   flex: 1;
   padding: 20px;
   overflow-y: hidden;
+
+  .job-assistant-hero {
+    margin-bottom: 22px;
+    padding: 24px;
+    border-radius: 24px;
+    background:
+      radial-gradient(circle at top right, rgba(255, 232, 188, 0.38), transparent 32%),
+      linear-gradient(160deg, #fff9ee 0%, #f6faff 56%, #edf5ff 100%);
+    border: 1px solid rgba(215, 226, 240, 0.95);
+    box-shadow: 0 18px 36px rgba(73, 109, 161, 0.08);
+  }
+
+  .hero-head {
+    h2 {
+      margin: 14px 0 10px;
+      font-size: 28px;
+      line-height: 1.2;
+      color: #17345f;
+    }
+
+    p {
+      margin: 0;
+      max-width: 760px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #556377;
+    }
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #eaf2ff;
+    color: #1858ab;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .hero-highlight-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .integration-note {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid #f2dfb4;
+    background: rgba(255, 248, 230, 0.78);
+
+    &.ready {
+      border-color: #cde7dc;
+      background: rgba(238, 250, 244, 0.82);
+    }
+  }
+
+  .integration-note-label {
+    display: inline-flex;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #fff0c9;
+    color: #9a6317;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .integration-note.ready .integration-note-label {
+    background: #e7f7f1;
+    color: #11785c;
+  }
+
+  .integration-note-text {
+    flex: 1;
+    min-width: 220px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #5b6777;
+  }
+
+  .integration-note-btn {
+    border: 0;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: #17345f;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .hero-highlight-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #30445f;
+  }
+
+  .highlight-marker {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1f6fd6 0%, #d9a441 100%);
+    box-shadow: 0 0 0 4px rgba(31, 111, 214, 0.1);
+  }
+
+  .hero-prompt-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 22px;
+  }
+
+  .hero-prompt-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid #d9e3f0;
+    background: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    text-align: left;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      border-color: #8db5eb;
+      box-shadow: 0 14px 28px rgba(74, 126, 191, 0.12);
+    }
+  }
+
+  .prompt-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #17345f;
+  }
+
+  .prompt-card-description {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #56657c;
+  }
+
+  .prompt-card-action {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1b65ca;
+  }
   
   .message-group {
     margin-bottom: 20px;
@@ -503,6 +1149,15 @@ watch(
     display: flex;
     align-items: flex-start;
     justify-content: flex-start;
+
+    &.has-tool-output {
+      .message-content {
+        max-width: min(960px, calc(100% - 70px));
+        background: transparent;
+        box-shadow: none;
+        padding: 0;
+      }
+    }
 
     .avatar {
       width: 40px;
@@ -521,6 +1176,23 @@ watch(
       color: #333;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
       word-break: break-word;
+    }
+  }
+
+  .tool-output-list {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .text-response {
+    background-color: #ffffff;
+    border-radius: 18px;
+    padding: 12px 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+
+    &.after-tool-output {
+      margin-top: 10px;
     }
   }
 
@@ -703,13 +1375,74 @@ watch(
     position: relative;
   }
 
+  .quick-input-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  .quick-input-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #6b7280;
+  }
+
+  .quick-input-chip {
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid #d5e3f5;
+    background: #f7fbff;
+    color: #27528a;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+
+    &:hover {
+      background: #ecf4ff;
+      border-color: #8db5eb;
+      color: #174985;
+    }
+  }
+
+  .quick-integration-tip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: #fff8e8;
+    border: 1px solid #f1dfb5;
+    color: #7a5b27;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .quick-integration-btn {
+    border: 0;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: #17345f;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
   .uploaded-file-tag {
-    position: absolute;
-    top: -28px;
+    position: relative;
+    top: auto;
     left: 0;
     display: flex;
     align-items: center;
     gap: 8px;
+    width: fit-content;
+    margin-bottom: 8px;
     padding: 6px 10px;
     background: linear-gradient(135deg, #f5fbff 0%, #ecf5ff 100%);
     border: 1px solid #b3d8ff;
@@ -805,5 +1538,36 @@ watch(
 
 :deep(.el-scrollbar__view) {
   padding: 10px;
+}
+
+@media (max-width: 1024px) {
+  .chat-conversation {
+    .hero-prompt-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-conversation {
+    padding: 14px;
+
+    .job-assistant-hero {
+      padding: 18px;
+    }
+
+    .hero-head h2 {
+      font-size: 24px;
+    }
+
+    .ai-message .message-content,
+    .user-message .message-content {
+      max-width: 84%;
+    }
+  }
+
+  .input-area {
+    padding: 12px 14px;
+  }
 }
 </style>

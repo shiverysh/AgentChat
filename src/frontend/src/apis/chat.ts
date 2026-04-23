@@ -13,10 +13,10 @@ export interface UploadResponse {
   data: string
 }
 
-export function sendMessage(data: Chat, onmessage: any, onclose: any) {
+export function sendMessage(data: Chat, onmessage: any, onclose: any, onerror?: any) {
   const ctrl = new AbortController();
 
-  fetchEventSource('/api/v1/completion', {
+  void fetchEventSource('/api/v1/completion', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -38,7 +38,24 @@ export function sendMessage(data: Chat, onmessage: any, onclose: any) {
     openWhenHidden: true,
     async onopen(response: any) {
       if (response.status !== 200) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        let errorMessage = response.statusText
+        try {
+          const responseText = await response.clone().text()
+          if (responseText) {
+            try {
+              const parsed = JSON.parse(responseText)
+              errorMessage = parsed.detail || parsed.status_message || responseText
+            } catch {
+              errorMessage = responseText
+            }
+          }
+        } catch {
+          errorMessage = response.statusText
+        }
+
+        const requestError = new Error(errorMessage) as Error & { status?: number }
+        requestError.status = response.status
+        throw requestError
       }
     },
     onmessage(msg: any) {
@@ -56,6 +73,12 @@ export function sendMessage(data: Chat, onmessage: any, onclose: any) {
       ctrl.abort();
       throw err;
     }
+  }).catch((err: any) => {
+    if (onerror) {
+      onerror(err)
+      return
+    }
+    console.error('聊天请求失败:', err)
   });
 
   return ctrl;
@@ -141,6 +164,5 @@ export function sendMarsExample(exampleId: number, onmessage: any, onclose: any)
 
   return ctrl;
 }
-
 
 

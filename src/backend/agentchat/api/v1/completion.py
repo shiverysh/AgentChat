@@ -11,6 +11,7 @@ from agentchat.api.services.user import UserPayload, get_login_user
 from agentchat.prompts.completion import SYSTEM_PROMPT
 from agentchat.schemas.completion import CompletionReq
 from agentchat.services.memory.client import memory_client
+from agentchat.services.resume_ingestion import parse_uploaded_file
 from agentchat.utils.common import count_tokens_usage
 from agentchat.utils.contexts import set_user_id_context, set_agent_name_context
 from agentchat.utils.helpers import build_completion_system_prompt, build_completion_user_input
@@ -28,6 +29,7 @@ async def completion(
     """
 
     # Agent 初始化
+    await DialogService.verify_user_permission(req.dialog_id, login_user.user_id)
     db_config = await DialogService.get_agent_by_dialog_id(req.dialog_id)
     agent_config = AgentConfig(**db_config)
     agent_config.user_id = login_user.user_id
@@ -41,10 +43,12 @@ async def completion(
 
     # 输入处理
     raw_input = req.user_input
+    uploaded_file_context = await parse_uploaded_file(req.file_url) if req.file_url else None
 
     user_input = build_completion_user_input(
         file_url=req.file_url,
-        user_input=raw_input
+        user_input=raw_input,
+        uploaded_file_context=uploaded_file_context,
     )
 
     # Prompt 构建

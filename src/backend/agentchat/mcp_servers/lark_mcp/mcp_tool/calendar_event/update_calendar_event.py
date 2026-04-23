@@ -3,11 +3,11 @@ import uuid
 
 import lark_oapi as lark
 from lark_oapi.api.calendar.v4 import *
-from typing import Optional
 from pydantic import Field
 
-from lark_mcp.mcp_tool.calendar.primary_calendar import get_primary_calendar
-from lark_mcp.mcp_tool.utils.time import convert_timestamp
+from ..calendar.primary_calendar import get_primary_calendar
+from ..utils.response import build_request_option, build_user_token_required_error, has_user_access_token
+from ..utils.time import convert_timestamp
 
 
 def update_calendar_event(
@@ -27,8 +27,12 @@ def update_calendar_event(
         recurrence: str = Field(None, description="需要更新的重复规则，遵循RRule规则，如FREQ=DAILY;INTERVAL=1"),
         app_id: str = Field(None, description="应用唯一标识，默认从用户配置中自动获取，无需额外传参"),
         app_secret: str = Field(None, description="应用密钥，默认从用户配置中自动获取，无需额外传参"),
+        user_access_token: str = Field(None, description="飞书用户访问令牌；配置后会以用户身份更新日程。"),
 ):
     """更新飞书的日程事件信息，日程创建成功返回日程信息，失败返回错误信息"""
+    if not has_user_access_token(user_access_token):
+        return build_user_token_required_error("更新飞书日程")
+
     # 创建client
     client = lark.Client.builder() \
         .app_id(app_id) \
@@ -37,7 +41,7 @@ def update_calendar_event(
 
     # 如果用户不指定日历ID，默认使用共享日历
     if not calendar_id:
-        calendar_id = get_primary_calendar(app_id, app_secret)
+        calendar_id = get_primary_calendar(app_id, app_secret, user_access_token=user_access_token)
 
     if not attendee_ability:
         attendee_ability = "can_see_others"
@@ -73,7 +77,10 @@ def update_calendar_event(
         .build()
 
     # 发起请求
-    response: PatchCalendarEventResponse = client.calendar.v4.calendar_event.patch(request)
+    response: PatchCalendarEventResponse = client.calendar.v4.calendar_event.patch(
+        request,
+        build_request_option(user_access_token),
+    )
 
     # 处理失败返回
     if not response.success():

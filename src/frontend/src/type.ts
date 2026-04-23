@@ -56,15 +56,113 @@ export interface MessageType {
   type?: string // 新增：支持消息类型
 }
 
+export interface ResumeMatchResult {
+  target_role: string
+  overall_summary: string
+  match_score: number
+  matched_strengths: string[]
+  missing_requirements: string[]
+  revision_suggestions: string[]
+  interview_focus: string[]
+}
+
+export interface ResumeRewriteResult {
+  target_role: string
+  overall_strategy: string
+  detected_issues: string[]
+  rewritten_resume: string[]
+  supplement_suggestions: string[]
+  highlight_keywords: string[]
+}
+
+export interface InterviewQuestionAnswerPair {
+  dimension: string
+  question: string
+  answer_outline: string
+  why_it_matters: string
+}
+
+export interface InterviewFollowupResult {
+  target_role: string
+  overall_summary: string
+  question_answer_pairs: InterviewQuestionAnswerPair[]
+  deep_dive_points: string[]
+  risk_points: string[]
+}
+
+export type ToolOutputCard =
+  | {
+      type: 'resume_match'
+      payload: ResumeMatchResult
+    }
+  | {
+      type: 'resume_rewrite'
+      payload: ResumeRewriteResult
+    }
+  | {
+      type: 'interview_followup'
+      payload: InterviewFollowupResult
+    }
+
+export type ExecutionRecordKind = 'tool' | 'mcp' | 'skill' | 'mcp_tool' | 'skill_tool'
+
+export interface ExecutionRecord {
+  id: string
+  kind: ExecutionRecordKind
+  name: string
+  rawName: string
+  parentName?: string
+  scope?: string
+  status: 'START' | 'END' | 'ERROR'
+  message: string
+}
+
 export interface ChatMessage {
   personMessage: MessageType
   aiMessage: MessageType
+  toolOutputs?: ToolOutputCard[]
+  executionRecords?: ExecutionRecord[]
   eventInfo?: Array<{
     event_type: string
     show: boolean
     status: string
     message: string
   }>
+}
+
+export type JobWorkbenchItemType =
+  | 'resume_version'
+  | 'job_application'
+  | 'interview_plan'
+  | 'followup_note'
+
+export interface JobWorkbenchItem {
+  id: string
+  user_id: string
+  item_type: JobWorkbenchItemType
+  title: string
+  summary: string
+  content: string
+  status: string
+  tags: string[]
+  payload: Record<string, any>
+  source: string
+  create_time?: string
+  update_time?: string
+  display_time?: string
+}
+
+export interface JobWorkbenchStats {
+  total: number
+  resume_version: number
+  job_application: number
+  interview_plan: number
+  followup_note: number
+}
+
+export interface JobWorkbenchData {
+  stats: JobWorkbenchStats
+  items: JobWorkbenchItem[]
 }
 
 // 知识库类型定义

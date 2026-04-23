@@ -337,7 +337,9 @@ onMounted(async () => {
 
     <!-- 右侧内容区域 -->
     <div class="content">
-      <router-view />
+      <div class="route-page">
+        <router-view />
+      </div>
     </div>
     </div>
   </div>
@@ -350,6 +352,7 @@ onMounted(async () => {
 .workspace-container {
   width: 100%;
   height: 100vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background-color: #f8f9fa;
@@ -619,12 +622,17 @@ onMounted(async () => {
 .workspace-main {
   display: flex;
   flex: 1;
-  height: calc(100vh - 64px);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background-color: #ffffff;
 
   .sidebar {
     height: 100%;
     width: 280px;
+    flex-shrink: 0;
+    min-width: 0;
+    min-height: 0;
     background-color: #ffffff;
     border-right: 1px solid #e9ecef;
     display: flex;
@@ -632,6 +640,7 @@ onMounted(async () => {
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
 
     .create-section {
+      flex-shrink: 0;
       padding: 20px 16px;
 
       .create-btn-native {
@@ -673,8 +682,10 @@ onMounted(async () => {
 
     .session-list {
       flex: 1;
+      min-height: 0;
       padding: 8px;
       overflow-y: auto;
+      overscroll-behavior: contain;
 
       .loading-state {
         display: flex;
@@ -831,6 +842,8 @@ onMounted(async () => {
 
   .content {
     flex: 1;
+    display: flex;
+    min-width: 0;
     min-height: 0;
     background-color: #ffffff;
     border-radius: 0;
@@ -838,6 +851,13 @@ onMounted(async () => {
     box-shadow: none;
     border-left: 1px solid #e9ecef;
     overflow: hidden;
+  }
+
+  .route-page {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
   }
 }
 
@@ -917,4 +937,3 @@ onMounted(async () => {
   }
 }
 </style>
-

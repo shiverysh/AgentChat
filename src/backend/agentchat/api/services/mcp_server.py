@@ -16,6 +16,102 @@ from agentchat.settings import app_settings
 
 
 class MCPService:
+    @staticmethod
+    def merge_server_config(default_config: Any, user_config: Any):
+        if isinstance(default_config, list):
+            if not isinstance(user_config, list):
+                return default_config
+
+            user_config_map = {
+                item.get("key"): item
+                for item in user_config
+                if isinstance(item, dict) and item.get("key")
+            }
+            merged_config = []
+            seen_keys: set[str] = set()
+
+            for item in default_config:
+                if not isinstance(item, dict):
+                    merged_config.append(item)
+                    continue
+
+                key = item.get("key")
+                if key and key in user_config_map:
+                    merged_item = {**item, **user_config_map[key]}
+                    merged_item["label"] = merged_item.get("label") or item.get("label") or key
+                    merged_config.append(merged_item)
+                    seen_keys.add(key)
+                else:
+                    merged_config.append(item)
+                    if key:
+                        seen_keys.add(key)
+
+            for item in user_config:
+                if not isinstance(item, dict):
+                    merged_config.append(item)
+                    continue
+
+                key = item.get("key")
+                if key and key in seen_keys:
+                    continue
+                merged_config.append(item)
+
+            return merged_config
+
+        if isinstance(default_config, dict) and isinstance(user_config, dict):
+            return {**default_config, **user_config}
+
+        if user_config not in (None, "", [], {}):
+            return user_config
+
+        return default_config
+
+    @staticmethod
+    def _extract_transport_config_from_imported(imported_config: Dict[str, Any] | Any) -> Dict[str, Any]:
+        if not isinstance(imported_config, dict):
+            return {}
+
+        if isinstance(imported_config.get("transport_config"), dict):
+            return imported_config.get("transport_config", {})
+
+        mcp_servers = imported_config.get("mcpServers")
+        if not isinstance(mcp_servers, dict) or not mcp_servers:
+            return {}
+
+        _, first_config = next(iter(mcp_servers.items()), ("", {}))
+        return first_config if isinstance(first_config, dict) else {}
+
+    @classmethod
+    def resolve_server_connection_payload(cls, server: Dict[str, Any]) -> Dict[str, Any]:
+        connection_type = server.get("type", "sse")
+        payload = {
+            "type": connection_type,
+            "server_name": server.get("server_name", "MCP Server"),
+            "url": server.get("url"),
+        }
+
+        if connection_type == "stdio":
+            transport_config = {}
+            raw_config = server.get("config")
+            if isinstance(raw_config, dict) and raw_config.get("command"):
+                transport_config = raw_config
+
+            if not transport_config:
+                transport_config = cls._extract_transport_config_from_imported(server.get("imported_config"))
+
+            payload.update({
+                key: value
+                for key, value in transport_config.items()
+                if key in {"command", "args", "env", "cwd"} and value is not None
+            })
+            return payload
+
+        imported_config = server.get("imported_config")
+        transport_config = cls._extract_transport_config_from_imported(imported_config)
+        if isinstance(transport_config, dict) and transport_config.get("headers"):
+            payload["headers"] = transport_config.get("headers")
+
+        return payload
 
     @classmethod
     async def create_mcp_server(
@@ -30,7 +126,7 @@ class MCPService:
         logo_url: str,
         mcp_as_tool_name: str,
         description: str,
-        config: dict = None,
+        config: Any = None,
         imported_config: dict = None,
         config_enabled: bool = False,
     ):
@@ -97,7 +193,7 @@ class MCPService:
         for server in all_servers:
             user_config = await MCPUserConfigService.show_mcp_user_config(user_id, server["mcp_server_id"])
             if user_config.get("config"):
-                server["config"] = user_config.get("config")
+                server["config"] = cls.merge_server_config(server.get("config"), user_config.get("config"))
         return all_servers
 
     @classmethod

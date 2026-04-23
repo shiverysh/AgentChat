@@ -1,5 +1,7 @@
 from loguru import logger
+from fastapi import HTTPException
 
+from agentchat.api.errcode.base import NotFoundError, UnAuthorizedError
 from agentchat.api.services.agent import AgentService
 from agentchat.core.callbacks import usage_metadata_callback
 from agentchat.core.models.manager import ModelManager
@@ -10,6 +12,23 @@ from agentchat.prompts.completion import GENERATE_CHAT_SUMMARY
 
 
 class DialogService:
+
+    DIALOG_NOT_FOUND_MESSAGE = "当前会话不存在或已失效，请重新选择或创建会话"
+    AGENT_NOT_FOUND_MESSAGE = "当前会话绑定的智能体不存在，请重新创建会话"
+
+    @classmethod
+    async def get_dialog_or_raise(cls, dialog_id: str):
+        dialog = await DialogDao.select_dialog_by_id(dialog_id)
+        if not dialog:
+            raise NotFoundError.http_exception(cls.DIALOG_NOT_FOUND_MESSAGE)
+        return dialog
+
+    @classmethod
+    async def get_agent_config_or_raise(cls, agent_id: str):
+        agent = await AgentService.select_agent_by_id(agent_id)
+        if not agent:
+            raise NotFoundError.http_exception(cls.AGENT_NOT_FOUND_MESSAGE)
+        return agent
 
     @classmethod
     async def create_dialog(cls, name: str, agent_id: str, agent_type: str, user_id: str):
@@ -47,8 +66,10 @@ class DialogService:
     async def get_agent_by_dialog_id(cls, dialog_id: str):
         """Get agent information by dialog_id"""
         try:
-            dialog = await DialogDao.get_agent_by_dialog_id(dialog_id=dialog_id)
-            return await AgentService.select_agent_by_id(dialog.agent_id)
+            dialog = await cls.get_dialog_or_raise(dialog_id)
+            return await cls.get_agent_config_or_raise(dialog.agent_id)
+        except HTTPException:
+            raise
         except Exception as err:
             raise ValueError(f"Select Dialog Appear Error: {err}")
 
@@ -72,13 +93,13 @@ class DialogService:
     @classmethod
     async def verify_user_permission(cls, dialog_id: str, user_id: str):
         """Verify user has permission to access dialog"""
-        dialog = await DialogDao.get_agent_by_dialog_id(dialog_id=dialog_id)
+        dialog = await cls.get_dialog_or_raise(dialog_id)
         if user_id not in (AdminUser, dialog.user_id):
-            raise ValueError(f"没有权限访问")
+            raise UnAuthorizedError.http_exception("没有权限访问该会话")
 
     @classmethod
     async def get_dialog_history_summary(cls, dialog_id):
-        dialog = await DialogDao.select_dialog_by_id(dialog_id)
+        dialog = await cls.get_dialog_or_raise(dialog_id)
         return dialog.summary
 
     @classmethod
@@ -87,10 +108,10 @@ class DialogService:
             dialog_id=dialog_id,
             k=10000
         )
-        dialog = await DialogDao.select_dialog_by_id(dialog_id)
+        dialog = await cls.get_dialog_or_raise(dialog_id)
 
         if dialog.user_id != user_id:
-            raise ValueError(f"无权限访问 {dialog_id} 数据")
+            raise UnAuthorizedError.http_exception(f"无权限访问 {dialog_id} 数据")
         current_summary = dialog.summary
         summary_last_time = dialog.summary_last_time
 
@@ -242,6 +263,4 @@ class DialogService:
         new_messages = [m for pair in kept_pairs for m in pair]
 
         return old_messages, new_messages
-
-
 

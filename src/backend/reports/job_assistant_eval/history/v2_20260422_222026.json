@@ -1,0 +1,626 @@
+{
+  "generated_at": "2026-04-22T22:20:26",
+  "run_label": "v2",
+  "run_id": "v2_20260422_222026",
+  "config_path": "agentchat/config.yaml",
+  "case_file": "/Users/yangsenhao/Desktop/my_agent_2/AgentChat/src/backend/agentchat/evals/job_assistant/cases.json",
+  "judge_enabled": true,
+  "judge_weight": 0.35,
+  "summary": {
+    "total_cases": 6,
+    "passed_cases": 6,
+    "pass_rate": 1.0,
+    "average_score": 0.9448,
+    "rule_average_score": 0.9903,
+    "judge_average_score": 0.8604,
+    "judge_enabled": true,
+    "tool_summary": {
+      "resume_match": {
+        "case_count": 2,
+        "passed_cases": 2,
+        "pass_rate": 1.0,
+        "average_score": 0.9519,
+        "rule_average_score": 1.0,
+        "judge_average_score": 0.8625
+      },
+      "resume_rewrite": {
+        "case_count": 2,
+        "passed_cases": 2,
+        "pass_rate": 1.0,
+        "average_score": 0.9337,
+        "rule_average_score": 0.9875,
+        "judge_average_score": 0.8337
+      },
+      "interview_followup": {
+        "case_count": 2,
+        "passed_cases": 2,
+        "pass_rate": 1.0,
+        "average_score": 0.9489,
+        "rule_average_score": 0.9833,
+        "judge_average_score": 0.885
+      }
+    },
+    "runtime": {
+      "average_elapsed_seconds": 70.3272,
+      "max_elapsed_seconds": 96.7806,
+      "tool_runtime": {
+        "resume_match": {
+          "average_elapsed_seconds": 65.1241,
+          "max_elapsed_seconds": 69.8469
+        },
+        "resume_rewrite": {
+          "average_elapsed_seconds": 62.4855,
+          "max_elapsed_seconds": 70.1761
+        },
+        "interview_followup": {
+          "average_elapsed_seconds": 83.3721,
+          "max_elapsed_seconds": 96.7806
+        }
+      }
+    }
+  },
+  "cases": [
+    {
+      "case_id": "resume_match_job_assistant",
+      "tool": "resume_match",
+      "overall_score": 0.9563,
+      "rule_score": 1.0,
+      "judge_score": 0.875,
+      "pass_threshold": 0.72,
+      "passed": true,
+      "metric_scores": {
+        "match_score_range": 1.0,
+        "matched_strengths_count": 1.0,
+        "missing_requirements_count": 1.0,
+        "revision_suggestions_count": 1.0,
+        "interview_focus_count": 1.0,
+        "expected_keyword_coverage": 1.0,
+        "missing_keyword_coverage": 1.0,
+        "summary_presence": 1.0
+      },
+      "judge_metric_scores": {
+        "jd_alignment": 0.9,
+        "gap_detection": 0.85,
+        "suggestion_actionability": 0.82,
+        "factual_grounding": 0.93
+      },
+      "notes": [
+        "输出匹配度：85/100",
+        "Judge 摘要：Agent输出高度贴合岗位JD与简历事实，精准捕获预期的缺失项（评测、监控），技术建议具备强可执行性，整体逻辑严密且无事实捏造。",
+        "Judge 优势：精准对齐JD核心职责与技术栈，明确命中预期缺失的‘评测’与‘监控’要求，匹配度评估客观准确。；修改建议与面试聚焦高度具体，直接给出LangSmith/OpenTelemetry接入、Few-shot/CoT调优、SSE容错降级等可落地技术方案。",
+        "Judge 不足：缺失要求中存在少量超纲推断（如要求实习生在简历阶段展现LangGraph底层状态管理深度），对候选人略有苛责。；部分建议（如ATS关键词前置加粗）偏向通用求职技巧，与LLM应用开发的专业技术深度关联较弱。"
+      ],
+      "judge_summary": "Agent输出高度贴合岗位JD与简历事实，精准捕获预期的缺失项（评测、监控），技术建议具备强可执行性，整体逻辑严密且无事实捏造。"
+    },
+    {
+      "case_id": "resume_match_api_agent",
+      "tool": "resume_match",
+      "overall_score": 0.9475,
+      "rule_score": 1.0,
+      "judge_score": 0.85,
+      "pass_threshold": 0.68,
+      "passed": true,
+      "metric_scores": {
+        "match_score_range": 1.0,
+        "matched_strengths_count": 1.0,
+        "missing_requirements_count": 1.0,
+        "revision_suggestions_count": 1.0,
+        "interview_focus_count": 1.0,
+        "expected_keyword_coverage": 1.0,
+        "missing_keyword_coverage": 1.0,
+        "summary_presence": 1.0
+      },
+      "judge_metric_scores": {
+        "jd_alignment": 0.85,
+        "gap_detection": 0.9,
+        "suggestion_actionability": 0.9,
+        "factual_grounding": 0.75
+      },
+      "notes": [
+        "输出匹配度：85/100",
+        "Judge 摘要：输出精准覆盖JD核心技能与加分项，缺漏识别准确，建议具备高度实操性，但能力评估用词与打分略有拔高。",
+        "Judge 优势：精准命中期望的关键词匹配与缺失项，结构化输出完整且严格对齐JD技术栈与岗位要求；修改建议与面试聚焦均提供具体技术路径与量化指标，具备强可执行性与岗位针对性",
+        "Judge 不足：能力评估用词（如“熟练掌握”“深入实践”“掌握”）较简历原文的“使用/实践”存在明显拔高，事实保留度需收紧；匹配分数直接给出预期区间上限85分，未充分体现Function Calling与异常处理缺失带来的合理扣分，分数弹性不足"
+      ],
+      "judge_summary": "输出精准覆盖JD核心技能与加分项，缺漏识别准确，建议具备高度实操性，但能力评估用词与打分略有拔高。"
+    },
+    {
+      "case_id": "resume_rewrite_job_assistant",
+      "tool": "resume_rewrite",
+      "overall_score": 0.9361,
+      "rule_score": 1.0,
+      "judge_score": 0.8175,
+      "pass_threshold": 0.72,
+      "passed": true,
+      "metric_scores": {
+        "detected_issues_count": 1.0,
+        "rewritten_resume_count": 1.0,
+        "supplement_suggestions_count": 1.0,
+        "highlight_keywords_count": 1.0,
+        "expected_keyword_coverage": 1.0,
+        "source_fact_retention": 1.0,
+        "fabrication_penalty": 1.0,
+        "strategy_presence": 1.0
+      },
+      "judge_metric_scores": {
+        "role_alignment": 0.82,
+        "factual_preservation": 0.95,
+        "rewrite_quality": 0.78,
+        "keyword_strength": 0.72
+      },
+      "notes": [
+        "Judge 摘要：严格遵循事实边界进行专业化改写，精准对齐岗位技术栈要求，但核心关键词未融入正文导致技术穿透力略有不足。",
+        "Judge 优势：坚守事实底线，未强行编造未接触的技术框架，有效规避简历注水风险；改写逻辑清晰，将口语化描述精准转化为工程链路表达，并给出极具针对性的JD对齐建议",
+        "Judge 不足：改写条目偏重宏观业务描述，缺乏对具体技术实现细节（如接口设计、并发/流式机制）的具象刻画；核心JD关键词仅置于高亮与建议模块，未以合理形式（如技术栈/熟悉项）渗入改写正文，影响ATS系统匹配度"
+      ],
+      "judge_summary": "严格遵循事实边界进行专业化改写，精准对齐岗位技术栈要求，但核心关键词未融入正文导致技术穿透力略有不足。"
+    },
+    {
+      "case_id": "resume_rewrite_api_agent",
+      "tool": "resume_rewrite",
+      "overall_score": 0.9313,
+      "rule_score": 0.975,
+      "judge_score": 0.85,
+      "pass_threshold": 0.7,
+      "passed": true,
+      "metric_scores": {
+        "detected_issues_count": 1.0,
+        "rewritten_resume_count": 1.0,
+        "supplement_suggestions_count": 1.0,
+        "highlight_keywords_count": 1.0,
+        "expected_keyword_coverage": 0.8,
+        "source_fact_retention": 1.0,
+        "fabrication_penalty": 1.0,
+        "strategy_presence": 1.0
+      },
+      "judge_metric_scores": {
+        "role_alignment": 0.9,
+        "factual_preservation": 0.75,
+        "rewrite_quality": 0.8,
+        "keyword_strength": 0.95
+      },
+      "notes": [
+        "Judge 摘要：该结果高度对齐岗位JD与技术关键词，改写专业且结构完整，但存在部分效果描述的合理推断（非原文事实）及单项目拆分过长的问题，需精简与事实核验后方可直接投递。",
+        "Judge 优势：精准映射JD核心要求（工具调用、多步推理、向量检索、接口编排），术语使用高度专业且符合LLM应用开发工程范式。；诊断与补充建议极具实操性，明确指出了底层实现机制、优化对比指标等需补充的关键信息，指导性强。",
+        "Judge 不足：事实保留存在轻微越界，原文仅描述功能实现，改写中添加了“提升稳定性与匹配精度”、“保障数据追溯能力”等结果性推断，非原始事实。；单个项目被拆分为5条简历要点，篇幅冗余，实际简历排版时需进一步合并为2-3条以保证版面紧凑与可执行性。"
+      ],
+      "judge_summary": "该结果高度对齐岗位JD与技术关键词，改写专业且结构完整，但存在部分效果描述的合理推断（非原文事实）及单项目拆分过长的问题，需精简与事实核验后方可直接投递。"
+    },
+    {
+      "case_id": "interview_followup_job_assistant",
+      "tool": "interview_followup",
+      "overall_score": 0.9632,
+      "rule_score": 1.0,
+      "judge_score": 0.895,
+      "pass_threshold": 0.72,
+      "passed": true,
+      "metric_scores": {
+        "question_count": 1.0,
+        "answer_outline_completeness": 1.0,
+        "deep_dive_points_count": 1.0,
+        "risk_points_count": 1.0,
+        "topic_coverage": 1.0,
+        "summary_presence": 1.0
+      },
+      "judge_metric_scores": {
+        "question_depth": 0.88,
+        "answer_framework_quality": 0.85,
+        "role_relevance": 0.95,
+        "risk_awareness": 0.9
+      },
+      "notes": [
+        "生成追问数：5",
+        "Judge 摘要：输出高度贴合LLM应用开发实习生岗位与给定项目背景，问题设计具备较强的工程实战深度，答案框架逻辑严密且可执行性强，风险识别覆盖技术、安全与数据评估全链路，完全达到并超出预期标准。",
+        "Judge 优势：问题精准锚定项目技术栈（LangGraph/MCP/MinerU/SSE），深度结合状态流转、鉴权隔离、流式同步等工程核心难点，极具实战考察价值。；答案提纲采用“设计动机-实现路径-异常处理”的结构化逻辑，风险点覆盖网络拓扑、降级兜底与评估偏差，具备极强的防御性准备指导意义。",
+        "Judge 不足：答案框架偏重宏观策略，缺乏对具体关键API调用、核心配置参数或代码片段的指引，实习生在实际应答时可能难以具象化落地。；效果评估维度虽提及LLM-as-a-Judge与离线测试集，但未明确标注Token成本约束与评判防幻觉校验的具体工程手段，对实习生实操的指导颗粒度可进一步细化。"
+      ],
+      "judge_summary": "输出高度贴合LLM应用开发实习生岗位与给定项目背景，问题设计具备较强的工程实战深度，答案框架逻辑严密且可执行性强，风险识别覆盖技术、安全与数据评估全链路，完全达到并超出预期标准。"
+    },
+    {
+      "case_id": "interview_followup_api_agent",
+      "tool": "interview_followup",
+      "overall_score": 0.9346,
+      "rule_score": 0.9667,
+      "judge_score": 0.875,
+      "pass_threshold": 0.7,
+      "passed": true,
+      "metric_scores": {
+        "question_count": 1.0,
+        "answer_outline_completeness": 1.0,
+        "deep_dive_points_count": 1.0,
+        "risk_points_count": 1.0,
+        "topic_coverage": 0.8,
+        "summary_presence": 1.0
+      },
+      "judge_metric_scores": {
+        "question_depth": 0.85,
+        "answer_framework_quality": 0.8,
+        "role_relevance": 0.95,
+        "risk_awareness": 0.9
+      },
+      "notes": [
+        "生成追问数：5",
+        "Judge 摘要：高度贴合岗位核心诉求与项目背景，技术链路覆盖完整且风险提示切中工程痛点；回答框架具备良好可执行性，但实操层面的量化指标与具体技术锚点略显不足，部分宏观架构问题对实习生略超纲。",
+        "Judge 优势：精准对齐岗位JD与项目背景，全面覆盖工具召回、参数抽取、Milvus检索及多步异常处理等核心考点，技术追问逻辑严密且层层递进。；风险提示直击生产环境落地痛点（如Token成本失控、下游雪崩容灾、Schema变更同步），具备极强的实战避坑与自查指导价值。",
+        "Judge 不足：部分问题（如十万级API架构演进与分片策略）偏向宏观系统容量规划，对实习生岗位的实际考察权重偏高，偏离日常开发职责。；回答框架虽结构清晰，但多依赖“说明/阐述”等动作指引，缺乏具体可量化的评估基线或Prompt/调参示例作为答题参考锚点。"
+      ],
+      "judge_summary": "高度贴合岗位核心诉求与项目背景，技术链路覆盖完整且风险提示切中工程痛点；回答框架具备良好可执行性，但实操层面的量化指标与具体技术锚点略显不足，部分宏观架构问题对实习生略超纲。"
+    }
+  ],
+  "raw_results": [
+    {
+      "case_id": "resume_match_job_assistant",
+      "tool": "resume_match",
+      "elapsed_seconds": 69.8469,
+      "result": {
+        "target_role": "LLM 应用开发实习生",
+        "overall_summary": "候选人在核心技术栈（Python/FastAPI/LangChain/LangGraph）与核心职责（Tool Calling、外部工具集成、文档解析链路、SSE流式返回及业务场景抽象）上高度契合，具备完整的Agent开发实战经验；但在RAG架构、Prompt设计细节及模型评测监控方面简历描述有所欠缺。",
+        "match_score": 85,
+        "matched_strengths": [
+          "熟练掌握Python与FastAPI，并深入使用LangChain/LangGraph进行Agent工作流编排，技术栈与JD要求完全一致。",
+          "具备扎实的Tool Calling与外部工具集成能力，成功封装并接入MinerU、飞书文档/日历等多类服务及MCP协议。",
+          "已实现SSE流式传输与结构化结果卡片返回，覆盖现代LLM应用核心交互规范。",
+          "成功将求职面试业务抽象为智能体能力，构建涵盖简历解析、匹配、改写及多轮追问的完整闭环。",
+          "具备文档理解链路建设经验，熟练使用MinerU处理非结构化文档（PDF/DOCX）并打通下游Agent任务。"
+        ],
+        "missing_requirements": [
+          "简历未明确体现RAG（检索增强生成）相关技术储备或落地实践。",
+          "缺乏Prompt设计、优化策略及调试方法论的具体描述。",
+          "未提及LLM应用的效果评测体系（如准确率、幻觉评估）与线上监控/可观测性方案。",
+          "对MCP协议、LangGraph底层状态管理及复杂路由机制的工程深度尚未充分展现。",
+          "缺少对项目业务指标或性能指标（如响应延迟、任务成功率、解析准确率）的量化说明。"
+        ],
+        "revision_suggestions": [
+          "补充Prompt工程实践细节，例如如何通过Few-shot、CoT或结构化Prompt提升Tool调用准确率与输出稳定性。",
+          "增加RAG技术栈描述，可结合项目说明向量检索、分块策略、重排序等技术储备，或明确标注技术选型考量。",
+          "补充执行轨迹同步的监控与评测方案，如接入LangSmith/OpenTelemetry的具体实践，以呼应JD中的‘评测与监控’要求。",
+          "量化项目成果与技术指标，例如流式首字延迟、结构化解析成功率、Agent任务执行成功率等，增强数据说服力。",
+          "优化关键词布局，将Python、FastAPI、LangChain、RAG、SSE、Prompt等JD核心词前置或加粗，提升ATS筛选通过率。"
+        ],
+        "interview_focus": [
+          "深入准备RAG架构原理，梳理在求职场景中引入RAG解决文档长尾知识检索痛点的可行方案。",
+          "系统梳理Prompt设计方法论，准备在简历匹配/改写/追问等环节的Prompt调优案例与Bad Case处理经验。",
+          "详细复盘LangGraph工作流设计，包括节点状态管理、条件分支逻辑、异常重试与并发控制机制。",
+          "针对SSE与结构化输出，准备大模型JSON解析失败、流中断或幻觉输出的容错、重试与降级策略。",
+          "阐述LLM应用评测与监控体系设计思路，包括离线评测集构建、核心指标定义（如准确率、延迟）及线上告警策略。"
+        ]
+      },
+      "judge_result": {
+        "overall_score": 0.875,
+        "metric_scores": {
+          "jd_alignment": 0.9,
+          "gap_detection": 0.85,
+          "suggestion_actionability": 0.82,
+          "factual_grounding": 0.93
+        },
+        "summary": "Agent输出高度贴合岗位JD与简历事实，精准捕获预期的缺失项（评测、监控），技术建议具备强可执行性，整体逻辑严密且无事实捏造。",
+        "strengths": [
+          "精准对齐JD核心职责与技术栈，明确命中预期缺失的‘评测’与‘监控’要求，匹配度评估客观准确。",
+          "修改建议与面试聚焦高度具体，直接给出LangSmith/OpenTelemetry接入、Few-shot/CoT调优、SSE容错降级等可落地技术方案。"
+        ],
+        "weaknesses": [
+          "缺失要求中存在少量超纲推断（如要求实习生在简历阶段展现LangGraph底层状态管理深度），对候选人略有苛责。",
+          "部分建议（如ATS关键词前置加粗）偏向通用求职技巧，与LLM应用开发的专业技术深度关联较弱。"
+        ]
+      },
+      "judge_error": null
+    },
+    {
+      "case_id": "resume_match_api_agent",
+      "tool": "resume_match",
+      "elapsed_seconds": 60.4013,
+      "result": {
+        "target_role": "LLM 应用开发实习生",
+        "overall_summary": "候选人项目经验与LLM应用开发高度契合，熟练掌握Python、Prompt调优、多步工具编排及向量检索，具备扎实的Agent实战基础。简历在异常处理机制、LangGraph与MCP等加分项上表述不足，需针对性补充完善以全面对齐JD。",
+        "match_score": 85,
+        "matched_strengths": [
+          "熟练掌握Python技术栈，具备完整的LLM Agent Copilot项目开发经验",
+          "深入实践多步工具调用编排、参数抽取与缺参补问逻辑，契合Agent工作流搭建要求",
+          "熟悉Prompt Engineering，具备实际的Prompt调优与迭代经验",
+          "掌握Milvus向量数据库，具备候选工具召回与检索能力，契合RAG核心理念",
+          "熟悉Flask与API集成开发，具备接口调用结果整理与业务落地能力"
+        ],
+        "missing_requirements": [
+          "简历未明确体现异常处理（Exception Handling）与容错降级机制的设计经验",
+          "缺乏LangGraph工作流框架的实际使用或项目落地经验",
+          "未提及对Model Context Protocol (MCP) 的了解或技术调研",
+          "Function Calling 核心概念未在技术描述中显式点明",
+          "RAG完整链路（如数据清洗、Embedding优化、重排策略）描述较为简略"
+        ],
+        "revision_suggestions": [
+          "在技术栈或职责描述中显式补充 'Function Calling' 与 '异常处理/容错机制' 关键词以精准对齐JD",
+          "量化项目成果，补充工具调用准确率、响应延迟优化比例或Prompt迭代次数等可衡量数据",
+          "细化Milvus检索逻辑，说明向量匹配策略、元数据过滤及与Agent决策的具体结合点",
+          "针对LangGraph和MCP补充自学进度、技术调研心得或Demo实践，体现快速学习与技术敏感度",
+          "采用STAR法则重构项目描述，清晰划分业务背景、技术选型、核心动作与业务价值，提升可读性"
+        ],
+        "interview_focus": [
+          "多步工具调用的状态流转、上下文维护与复杂场景编排逻辑设计",
+          "Prompt调优的具体方法论、典型Badcase分析及A/B测试或评估过程",
+          "Milvus向量检索策略、过滤条件设计及RAG检索增强链路的优化思路",
+          "Agent开发中的异常捕获、重试退避策略、接口超时与降级方案设计",
+          "对LangGraph状态图机制与MCP协议标准的理解及技术演进规划"
+        ]
+      },
+      "judge_result": {
+        "overall_score": 0.85,
+        "metric_scores": {
+          "jd_alignment": 0.85,
+          "gap_detection": 0.9,
+          "suggestion_actionability": 0.9,
+          "factual_grounding": 0.75
+        },
+        "summary": "输出精准覆盖JD核心技能与加分项，缺漏识别准确，建议具备高度实操性，但能力评估用词与打分略有拔高。",
+        "strengths": [
+          "精准命中期望的关键词匹配与缺失项，结构化输出完整且严格对齐JD技术栈与岗位要求",
+          "修改建议与面试聚焦均提供具体技术路径与量化指标，具备强可执行性与岗位针对性"
+        ],
+        "weaknesses": [
+          "能力评估用词（如“熟练掌握”“深入实践”“掌握”）较简历原文的“使用/实践”存在明显拔高，事实保留度需收紧",
+          "匹配分数直接给出预期区间上限85分，未充分体现Function Calling与异常处理缺失带来的合理扣分，分数弹性不足"
+        ]
+      },
+      "judge_error": null
+    },
+    {
+      "case_id": "resume_rewrite_job_assistant",
+      "tool": "resume_rewrite",
+      "elapsed_seconds": 70.1761,
+      "result": {
+        "target_role": "LLM 应用开发实习生",
+        "overall_strategy": "将口语化描述转化为结构化技术表达，突出“文档解析-智能分析-内容生成”的端到端业务链路，严格对齐LLM应用开发对工程化落地与工作流编排的关注点，绝不添加未提及的框架、模型或量化数据。",
+        "detected_issues": [
+          "表达过于口语化，缺乏技术简历应有的专业术语与项目结构化呈现",
+          "功能描述停留在业务表层，未体现LLM/Agent技术实现路径与工程细节",
+          "技术栈描述单薄，仅提及Python/FastAPI，未说明组件在架构中的具体作用",
+          "缺乏对系统接口设计、数据处理规范或模块化工程实践的说明",
+          "未建立项目能力与目标岗位JD（Agent编排、Tool Calling、流式输出等）的显性关联"
+        ],
+        "rewritten_resume": [
+          "基于 Python 与 FastAPI 构建求职助手后端服务，实现简历上传、文件解析、岗位匹配分析、简历内容修改及面试问题生成等完整业务链路。",
+          "负责多格式简历文档解析模块开发，完成非结构化文件的文本提取与数据预处理，为后续分析与生成提供标准化输入。",
+          "梳理并串联文档处理、匹配度评估与智能生成等核心逻辑，构建自动化业务处理管道，提升系统执行连贯性。",
+          "完成飞书开放平台 API 集成，实现应用端与协同办公场景的数据交互与功能联动。",
+          "采用模块化架构组织后端代码，确保文件解析、业务分析、消息集成等组件的高内聚设计与独立维护能力。"
+        ],
+        "supplement_suggestions": [
+          "补充实际接入的大语言模型名称、调用方式（如 API 调用）及上下文/Token 管理策略",
+          "明确是否使用 LangChain/LangGraph 等框架进行 Agent 工作流编排，以及 Tool Calling 或 MCP 协议的具体应用场景",
+          "详细描述 Prompt 设计策略（如结构化约束、Few-shot 示例）及根据生成效果进行迭代的过程",
+          "说明文档解析采用的具体技术方案，以及是否实现生成结果的流式输出（Streaming）与前端交互",
+          "补充可验证的项目运行指标（如接口响应时间、并发支持能力、解析成功率）或测试反馈数据"
+        ],
+        "highlight_keywords": [
+          "Agent 工作流编排",
+          "Prompt 工程设计",
+          "Tool Calling / MCP 集成",
+          "文档解析与流式输出",
+          "FastAPI 后端工程"
+        ]
+      },
+      "judge_result": {
+        "overall_score": 0.8175,
+        "metric_scores": {
+          "role_alignment": 0.82,
+          "factual_preservation": 0.95,
+          "rewrite_quality": 0.78,
+          "keyword_strength": 0.72
+        },
+        "summary": "严格遵循事实边界进行专业化改写，精准对齐岗位技术栈要求，但核心关键词未融入正文导致技术穿透力略有不足。",
+        "strengths": [
+          "坚守事实底线，未强行编造未接触的技术框架，有效规避简历注水风险",
+          "改写逻辑清晰，将口语化描述精准转化为工程链路表达，并给出极具针对性的JD对齐建议"
+        ],
+        "weaknesses": [
+          "改写条目偏重宏观业务描述，缺乏对具体技术实现细节（如接口设计、并发/流式机制）的具象刻画",
+          "核心JD关键词仅置于高亮与建议模块，未以合理形式（如技术栈/熟悉项）渗入改写正文，影响ATS系统匹配度"
+        ]
+      },
+      "judge_error": null
+    },
+    {
+      "case_id": "resume_rewrite_api_agent",
+      "tool": "resume_rewrite",
+      "elapsed_seconds": 54.7949,
+      "result": {
+        "target_role": "LLM 应用开发实习生",
+        "overall_strategy": "将口语化描述转化为标准简历动作句，严格对齐JD中的工具调用、多步推理、向量检索与接口编排术语。按功能模块拆分重组，确保所有技术点与职责均源自原文，不虚构数据与结果。",
+        "detected_issues": [
+          "语言偏口语化，缺乏简历标准的专业动词与结构化表达",
+          "Milvus 向量检索与 MongoDB 的具体应用场景未与核心功能明确关联",
+          "多步调用与 Prompt 调整的描述较笼统，未体现工程实现路径",
+          "未使用岗位JD高度匹配的标准化术语（如Tool Calling、工作流等）",
+          "技术栈呈堆砌状态，缺乏在 LLM 应用链路中的具体作用说明"
+        ],
+        "rewritten_resume": [
+          "基于 Python 开发 API Copilot 智能体，实现基于用户意图的 API 智能路由、参数自动抽取与请求下发，完成自然语言到接口调用的端到端接口编排。",
+          "设计多步推理执行链路，串联多个独立 API 调用流程，实现跨接口参数透传与上下文状态管理，支撑复杂业务指令的自动化处理。",
+          "集成 Milvus 构建向量检索模块，结合 MongoDB 进行会话数据与调用记录的持久化存储，保障检索召回与数据追溯能力。",
+          "持续迭代 Prompt 工程策略，优化大模型在非结构化输入下的参数解析逻辑，提升工具调用（Tool Calling）的稳定性与匹配精度。",
+          "独立完成从意图识别、向量化匹配到多步 API 调用的应用架构搭建，对齐 LLM 工具调用与工作流编排的核心技术范式。"
+        ],
+        "supplement_suggestions": [
+          "说明 Milvus 向量检索的具体作用对象（如：API 文档向量化、历史 Prompt 召回或用户意图匹配）",
+          "补充 Prompt 调整前后的对比或优化方向（如：增加 Few-shot、结构化约束或 CoT 思维链）",
+          "明确多步推理的底层实现机制（如：基于 LLM 规划、状态机或 DAG 工作流）",
+          "补充项目实际面向的业务场景或解决的痛点，增强技术落地的针对性",
+          "如有真实工程指标，可补充接口调用成功率、平均响应延迟或最大支持调用步数"
+        ],
+        "highlight_keywords": [
+          "工具调用 (Tool Calling / Function Calling)",
+          "接口编排 (API Orchestration)",
+          "多步推理 (Multi-step Reasoning)",
+          "向量检索 (Vector Retrieval)",
+          "Prompt 工程 / 动态提示词调优"
+        ]
+      },
+      "judge_result": {
+        "overall_score": 0.85,
+        "metric_scores": {
+          "role_alignment": 0.9,
+          "factual_preservation": 0.75,
+          "rewrite_quality": 0.8,
+          "keyword_strength": 0.95
+        },
+        "summary": "该结果高度对齐岗位JD与技术关键词，改写专业且结构完整，但存在部分效果描述的合理推断（非原文事实）及单项目拆分过长的问题，需精简与事实核验后方可直接投递。",
+        "strengths": [
+          "精准映射JD核心要求（工具调用、多步推理、向量检索、接口编排），术语使用高度专业且符合LLM应用开发工程范式。",
+          "诊断与补充建议极具实操性，明确指出了底层实现机制、优化对比指标等需补充的关键信息，指导性强。"
+        ],
+        "weaknesses": [
+          "事实保留存在轻微越界，原文仅描述功能实现，改写中添加了“提升稳定性与匹配精度”、“保障数据追溯能力”等结果性推断，非原始事实。",
+          "单个项目被拆分为5条简历要点，篇幅冗余，实际简历排版时需进一步合并为2-3条以保证版面紧凑与可执行性。"
+        ]
+      },
+      "judge_error": null
+    },
+    {
+      "case_id": "interview_followup_job_assistant",
+      "tool": "interview_followup",
+      "elapsed_seconds": 69.9636,
+      "result": {
+        "target_role": "LLM 应用开发实习生",
+        "overall_summary": "面试准备应聚焦于LangGraph状态流转与Agent工作流编排、MCP协议在飞书等第三方工具集成中的实际应用，以及MinerU解析与SSE流式展示的工程落地细节，重点展现从业务抽象、Prompt设计到全链路交互的系统化思维。",
+        "question_answer_pairs": [
+          {
+            "dimension": "技术方案",
+            "question": "在求职面试助手项目中，你是如何使用LangGraph设计Agent工作流的？如何处理多步任务间的状态流转与工具调用依赖？",
+            "answer_outline": "1) 明确求职场景的多步决策需求，说明为何选择图编排而非线性Chain；2) 阐述StateGraph核心设计（节点定义、全局State结构、条件边路由）；3) 结合AgentChat二次开发，说明如何拦截并管理Tool Calling的输入输出；4) 以典型链路（文档解析->字段提取->匹配/改写）为例说明状态流转逻辑。",
+            "why_it_matters": "考察对Agent图编排框架的底层理解，能否将复杂业务逻辑抽象为可调试、可干预的状态机，体现工程化架构能力。"
+          },
+          {
+            "dimension": "MCP集成",
+            "question": "项目中接入了飞书文档、飞书日历和求职工作台MCP，在MCP集成过程中如何保证多源数据交互的一致性与安全性？",
+            "answer_outline": "1) 说明MCP架构优势（Client-Server解耦、标准化工具/资源暴露）；2) 描述接入流程（定义MCP Server规范、配置Tool/Resource声明、权限与鉴权隔离）；3) 说明数据格式对齐策略与统一错误处理机制；4) 强调通过单一MCP Client路由管理多Server连接，避免上下文污染。",
+            "why_it_matters": "MCP是Agent互联的新标准，考察对协议规范的理解、多外部系统对接经验及企业级集成安全意识。"
+          },
+          {
+            "dimension": "Prompt设计与文档解析",
+            "question": "你封装了MinerU文档解析Tool并用于简历匹配与改写，如何保证复杂简历解析的准确率，并设计Prompt引导LLM输出稳定结构？",
+            "answer_outline": "1) 说明MinerU在复杂版面（表格、多栏、公式）解析中的定位及封装为标准Tool的流程；2) 描述解析后非结构化数据的清洗、字段映射与标准化；3) 阐述Prompt设计策略（明确角色+任务边界+Few-shot示例+JSON Schema强约束）；4) 说明解析低置信度时的Fallback或重试策略。",
+            "why_it_matters": "解析质量决定上游数据质量，Prompt设计决定下游输出稳定性，考察端到端数据处理与指令微调实战经验。"
+          },
+          {
+            "dimension": "工程化落地",
+            "question": "项目通过SSE展示执行轨迹和结构化结果卡片，在实现流式交互时，如何处理工具调用耗时与前端渲染的同步问题？",
+            "answer_outline": "1) 说明LangChain/LangGraph事件流捕获机制（如on_chain_stream、on_tool_start/end）；2) 描述后端分段推送策略（实时状态日志流 vs 最终结构化卡片流）；3) 解释前端基于事件类型（trace/card）的差异化解析与渲染逻辑；4) 提及断线重连、心跳保活或消息排序的基础工程处理。",
+            "why_it_matters": "流式交互是LLM应用体验核心，考察对异步通信、事件驱动架构及前后端协同的工程落地能力。"
+          },
+          {
+            "dimension": "效果评估",
+            "question": "如何评估“简历匹配”和“面试追问”这两个核心节点的效果？在缺乏大规模线上流量时，如何验证并迭代优化工作流？",
+            "answer_outline": "1) 定义评估维度（字段提取F1、匹配相关性、追问逻辑性、Token消耗与延迟）；2) 说明离线评估方法（构建种子测试集、人工规则校验、LLM-as-a-Judge辅助打分）；3) 描述Bad Case分析流程与Prompt/路由优化策略；4) 提出通过小范围内测或灰度发布验证核心链路的闭环思路。",
+            "why_it_matters": "考察数据驱动的迭代思维，能否在无充足线上数据条件下建立科学的Agent效果评估与持续优化机制。"
+          }
+        ],
+        "deep_dive_points": [
+          "LangGraph的StateGraph状态管理、条件边路由与人工/系统中断机制（Interrupt）",
+          "MCP协议标准（JSON-RPC通信、Resource/Tool/Prompt规范）及多Server并发调度策略",
+          "MinerU底层版面分析原理、复杂PDF解析后的文本清洗与结构化字段提取策略",
+          "SSE事件流（EventSource）的消息分块、类型定义、超时控制与前端流式渲染架构",
+          "Agent工作流中的长上下文管理、Tool调用失败重试机制与Token成本优化"
+        ],
+        "risk_points": [
+          "LangGraph与原生LangChain链路的差异边界及二次开发的具体实现细节可能被深度盘问",
+          "MCP接入过程中的实际网络拓扑、跨域鉴权、权限隔离与部署环境配置",
+          "MinerU解析图片型/扫描型简历的失败率及系统降级与兜底方案",
+          "SSE流式推送在长耗时任务或网络波动下的消息丢失、乱序处理机制",
+          "缺乏真实用户反馈时的评估数据偏差风险及Prompt过拟合/泛化能力不足问题"
+        ]
+      },
+      "judge_result": {
+        "overall_score": 0.895,
+        "metric_scores": {
+          "question_depth": 0.88,
+          "answer_framework_quality": 0.85,
+          "role_relevance": 0.95,
+          "risk_awareness": 0.9
+        },
+        "summary": "输出高度贴合LLM应用开发实习生岗位与给定项目背景，问题设计具备较强的工程实战深度，答案框架逻辑严密且可执行性强，风险识别覆盖技术、安全与数据评估全链路，完全达到并超出预期标准。",
+        "strengths": [
+          "问题精准锚定项目技术栈（LangGraph/MCP/MinerU/SSE），深度结合状态流转、鉴权隔离、流式同步等工程核心难点，极具实战考察价值。",
+          "答案提纲采用“设计动机-实现路径-异常处理”的结构化逻辑，风险点覆盖网络拓扑、降级兜底与评估偏差，具备极强的防御性准备指导意义。"
+        ],
+        "weaknesses": [
+          "答案框架偏重宏观策略，缺乏对具体关键API调用、核心配置参数或代码片段的指引，实习生在实际应答时可能难以具象化落地。",
+          "效果评估维度虽提及LLM-as-a-Judge与离线测试集，但未明确标注Token成本约束与评判防幻觉校验的具体工程手段，对实习生实操的指导颗粒度可进一步细化。"
+        ]
+      },
+      "judge_error": null
+    },
+    {
+      "case_id": "interview_followup_api_agent",
+      "tool": "interview_followup",
+      "elapsed_seconds": 96.7806,
+      "result": {
+        "target_role": "LLM 应用开发实习生",
+        "overall_summary": "面试准备应聚焦于NL-to-API映射链路的工程实现细节、Milvus与MongoDB协同检索策略的设计依据，以及多步调用异常处理与缺参补问的状态管理机制。需重点准备如何用实际开发经验支撑技术方案选型与效果评估。",
+        "question_answer_pairs": [
+          {
+            "dimension": "技术方案",
+            "question": "你提到使用 MongoDB 与 Milvus 管理 API 描述和参数 Schema，具体的检索策略是如何设计的？如何平衡向量检索的召回率与准确率？",
+            "answer_outline": "1. 明确双库职责划分：MongoDB 负责结构化元数据、版本管理与精确过滤，Milvus 负责 API 功能描述的语义向量化匹配；2. 描述检索链路：Query 向量化后召回候选，结合 MongoDB 条件进行二次过滤或业务规则校验；3. 说明平衡策略：结合自身实现，阐述阈值截断、混合检索或后处理排序机制；4. 提供实际案例：说明如何根据线上反馈调优召回策略。",
+            "why_it_matters": "考察检索策略设计能力、多模存储协同经验及对向量检索工程化瓶颈的理解，直接对应岗位核心要求。"
+          },
+          {
+            "dimension": "Agent设计",
+            "question": "在参数抽取和缺参补问环节，系统如何判定必填参数缺失？补问策略是如何生成并维持多轮对话上下文的？",
+            "answer_outline": "1. 缺失判定逻辑：说明如何将 LLM 输出与 API Schema/必填字段列表进行结构化比对；2. 补问生成机制：描述定向追问 Prompt 的设计思路与话术约束，避免无效发散；3. 状态管理方案：阐述多轮参数累积与上下文维护方式（如状态机、Session 缓存或 Prompt 动态组装）；4. 边界情况处理：说明歧义参数或冲突输入的校验与澄清流程。",
+            "why_it_matters": "深入考察 Agent 交互逻辑设计、结构化数据校验能力及多轮对话工程实践，验证是否具备完整的对话式 API 调用闭环经验。"
+          },
+          {
+            "dimension": "技术方案",
+            "question": "从自然语言到 API 调用的映射过程中，如何确保意图与工具能力的精准对齐？遇到过意图匹配错误的情况吗？如何解决的？",
+            "answer_outline": "1. 拆解映射链路：意图理解、候选召回、参数填充、调用指令生成各环节的作用；2. 对齐增强手段：结合自身实现说明如何利用 API 文档特征优化 Prompt 或增加规则约束；3. 错配案例分析：描述典型匹配失败场景（如语义相似但能力不同）；4. 解决与迭代：说明采用的校验机制、置信度阈值或人工标注反馈优化路径。",
+            "why_it_matters": "直击自然语言到 API 能力映射核心，考察系统架构思维、坏案（Bad Case）排查能力及闭环迭代方法。"
+          },
+          {
+            "dimension": "效果评估",
+            "question": "在多步 API 调用场景下，如果遇到网络超时、返回格式异常或前置步骤失败，系统如何进行异常处理与结果整理？",
+            "answer_outline": "1. 异常分类与捕获：说明如何标准化解析 API 响应，识别超时、鉴权失败、5xx 或格式错误；2. 控制流设计：阐述基于调用顺序的阻断机制，避免无效或破坏性调用；3. 重试与降级策略：说明重试次数、退避机制及失败后的 fallback 方案（如返回结构化错误提示）；4. 结果整理输出：如何将成功结果或异常码统一格式化，供 LLM 生成最终自然语言回复。",
+            "why_it_matters": "重点考察工程健壮性设计、调用流控制及对多步异常链路的处理能力，是生产环境 Agent 落地的关键指标。"
+          },
+          {
+            "dimension": "业务背景",
+            "question": "如果后续 API 数量增长到十万级，当前的 MongoDB + Milvus 架构和检索流程会遇到哪些瓶颈？你会如何演进架构？",
+            "answer_outline": "1. 瓶颈识别：分析检索延迟上升、元数据过滤压力、向量索引构建成本及数据一致性挑战；2. 存储与检索演进：提出 Milvus 分区/分片策略、索引类型切换、增量向量化更新管道；3. 架构解耦设计：说明引入缓存层、异步处理队列或 Schema 版本管理方案；4. 运维与成本：结合实习生视角说明监控指标设定与资源优化思路。",
+            "why_it_matters": "考察技术选型的扩展性思维、系统容量规划意识以及面对业务增长时的架构演进能力。"
+          }
+        ],
+        "deep_dive_points": [
+          "Milvus 向量索引选型（如 IVF_FLAT vs HNSW）与 Top-K 召回调优实践",
+          "基于 JSON Schema 约束的 LLM 参数抽取 Prompt 设计与结构化输出保障",
+          "缺参补问环节的多轮状态机设计与上下文窗口管理策略",
+          "多步 API 调用编排逻辑与失败节点回滚/补偿机制实现",
+          "API 描述文本向量化过程中的语义对齐与 Chunking 策略"
+        ],
+        "risk_points": [
+          "缺乏具体的业务指标（如召回准确率、参数填充成功率、端到端延迟）支撑项目效果",
+          "异常处理描述可能偏向理想链路，未充分说明复杂并发或下游 API 雪崩时的实际容灾方案",
+          "向量检索易受 Query 表述差异影响，若未准备后处理过滤或规则校验策略易被追问错配问题",
+          "多轮补问的上下文累积可能导致 Token 成本失控，需准备上下文压缩或摘要方案",
+          "API Schema 频繁变更时的数据同步机制与缓存一致性策略若未提及，易暴露工程运维短板"
+        ]
+      },
+      "judge_result": {
+        "overall_score": 0.875,
+        "metric_scores": {
+          "question_depth": 0.85,
+          "answer_framework_quality": 0.8,
+          "role_relevance": 0.95,
+          "risk_awareness": 0.9
+        },
+        "summary": "高度贴合岗位核心诉求与项目背景，技术链路覆盖完整且风险提示切中工程痛点；回答框架具备良好可执行性，但实操层面的量化指标与具体技术锚点略显不足，部分宏观架构问题对实习生略超纲。",
+        "strengths": [
+          "精准对齐岗位JD与项目背景，全面覆盖工具召回、参数抽取、Milvus检索及多步异常处理等核心考点，技术追问逻辑严密且层层递进。",
+          "风险提示直击生产环境落地痛点（如Token成本失控、下游雪崩容灾、Schema变更同步），具备极强的实战避坑与自查指导价值。"
+        ],
+        "weaknesses": [
+          "部分问题（如十万级API架构演进与分片策略）偏向宏观系统容量规划，对实习生岗位的实际考察权重偏高，偏离日常开发职责。",
+          "回答框架虽结构清晰，但多依赖“说明/阐述”等动作指引，缺乏具体可量化的评估基线或Prompt/调参示例作为答题参考锚点。"
+        ]
+      },
+      "judge_error": null
+    }
+  ]
+}

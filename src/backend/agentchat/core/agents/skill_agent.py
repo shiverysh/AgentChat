@@ -7,6 +7,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langgraph.config import get_stream_writer
 from langgraph.prebuilt.tool_node import ToolCallRequest
 
+from agentchat.core.agents.execution_events import build_execution_event
 from agentchat.core.callbacks import usage_metadata_callback
 from agentchat.core.models.manager import ModelManager
 from agentchat.database import AgentSkill
@@ -184,24 +185,74 @@ class SkillAgent:
             request: ToolCallRequest,
             handler
         ):
-            await self.emit_event(
-                {
-                    "status": "START",
-                    "title": f"Skill-Agent - {self.skill.name}执行可用工具: {request.tool_call["name"]}",
-                    "messages": f"正在调用工具 {request.tool_call["name"]}..."
-                }
-            )
-
-            tool_result = await handler(request)
+            raw_tool_name = request.tool_call["name"]
+            call_id = request.tool_call.get("id")
+            tool_args = request.tool_call.get("args", {})
 
             await self.emit_event(
-                {
-                    "status": "END",
-                    "title": f"Skill-Agent - {self.skill.name}执行可用工具: {request.tool_call["name"]}",
-                    "messages": f"{tool_result}"
-                }
+                build_execution_event(
+                    status="START",
+                    message=f"正在调用 Skill 工具 {raw_tool_name}...",
+                    call_kind="skill_tool",
+                    call_name=raw_tool_name,
+                    raw_name=raw_tool_name,
+                    call_scope="skill_agent",
+                    call_id=call_id,
+                    parent_name=self.skill.name,
+                )
             )
-            return tool_result
+            logger.info(
+                "Skill tool start | skill={} | tool={} | call_id={} | args={}",
+                self.skill.name,
+                raw_tool_name,
+                call_id,
+                tool_args,
+            )
+
+            try:
+                tool_result = await handler(request)
+
+                await self.emit_event(
+                    build_execution_event(
+                        status="END",
+                        message=str(tool_result),
+                        call_kind="skill_tool",
+                        call_name=raw_tool_name,
+                        raw_name=raw_tool_name,
+                        call_scope="skill_agent",
+                        call_id=call_id,
+                        parent_name=self.skill.name,
+                    )
+                )
+                logger.info(
+                    "Skill tool end | skill={} | tool={} | call_id={}",
+                    self.skill.name,
+                    raw_tool_name,
+                    call_id,
+                )
+                return tool_result
+            except Exception as err:
+                error_message = str(err)
+                await self.emit_event(
+                    build_execution_event(
+                        status="ERROR",
+                        message=error_message,
+                        call_kind="skill_tool",
+                        call_name=raw_tool_name,
+                        raw_name=raw_tool_name,
+                        call_scope="skill_agent",
+                        call_id=call_id,
+                        parent_name=self.skill.name,
+                    )
+                )
+                logger.error(
+                    "Skill tool error | skill={} | tool={} | call_id={} | error={}",
+                    self.skill.name,
+                    raw_tool_name,
+                    call_id,
+                    error_message,
+                )
+                raise
 
         return [add_tool_call_args]
 

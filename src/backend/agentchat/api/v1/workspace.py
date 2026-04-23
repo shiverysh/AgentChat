@@ -1,6 +1,7 @@
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from langchain_core.messages import HumanMessage, SystemMessage
+from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
 from agentchat.api.services.llm import LLMService
@@ -10,12 +11,18 @@ from agentchat.api.services.workspace_session import WorkSpaceSessionService
 from agentchat.prompts.completion import SYSTEM_PROMPT
 from agentchat.api.responses.builder import resp_200
 from agentchat.schemas.usage_stats import UsageStatsAgentType
-from agentchat.schemas.workspace import WorkSpaceSimpleTask
+from agentchat.schemas.workspace import WorkSpaceAgents, WorkSpaceSimpleTask
 from agentchat.api.services.user import UserPayload, get_login_user
 from agentchat.services.workspace.simple_agent import WorkSpaceSimpleAgent, MCPConfig
 from agentchat.utils.contexts import set_user_id_context, set_agent_name_context
+from agentchat.database.models.workspace_session import WorkSpaceSessionCreate
 
 router = APIRouter(prefix="/workspace", tags=["WorkSpace"])
+
+
+class WorkSpaceSessionCreateReq(BaseModel):
+    title: str = ""
+    contexts: list[dict] = Field(default_factory=list)
 
 
 @router.get("/plugins", summary="获取工作台的可用插件")
@@ -30,11 +37,22 @@ async def get_workspace_sessions(login_user: UserPayload = Depends(get_login_use
 
 
 @router.post("/session", summary="创建工作台会话")
-async def create_workspace_session(*,
-                                   title: str = "",
-                                   contexts: dict = {},
-                                   login_user: UserPayload = Depends(get_login_user)):
-    pass
+async def create_workspace_session(
+    req: WorkSpaceSessionCreateReq,
+    login_user: UserPayload = Depends(get_login_user)
+):
+    try:
+        session = await WorkSpaceSessionService.create_workspace_session(
+            WorkSpaceSessionCreate(
+                title=req.title.strip() or "新建会话",
+                agent=WorkSpaceAgents.SimpleAgent.value,
+                user_id=login_user.user_id,
+                contexts=req.contexts,
+            )
+        )
+        return resp_200(data=session.to_dict())
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
 
 @router.post("/session/{session_id}", summary="进入工作台会话")
 async def workspace_session_info(session_id: str,
@@ -105,5 +123,4 @@ async def workspace_simple_chat(simple_task: WorkSpaceSimpleTask,
             "X-Accel-Buffering": "no",
         }
     )
-
 

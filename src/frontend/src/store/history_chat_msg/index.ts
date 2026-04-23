@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import { ChatMessage } from '../../type';
 import { getHistoryMsgAPI } from '../../apis/history';
 import { ElMessage } from 'element-plus';
+import { appendToolOutputCard, hydrateToolOutputCardsFromMessage, parseToolOutputFromEvent } from '../../utils/toolOutput';
+import { parseExecutionRecordFromEvent, upsertExecutionRecord } from '../../utils/executionTrace';
 
 // 定义事件数据接口
 interface EventData {
@@ -10,6 +12,8 @@ interface EventData {
     title?: string;
     message?: string;
     status?: string;
+    event_type?: string;
+    structured_data?: unknown;
   };
   type?: string;
   timestamp?: number;
@@ -54,6 +58,8 @@ export const useHistoryChatStore = defineStore('history_chat_msg', () => {
             const chatMsg: ChatMessage = {
               personMessage: { content: '' },
               aiMessage: { content: '' },
+              toolOutputs: [],
+              executionRecords: [],
               eventInfo: []
             }
             
@@ -69,6 +75,21 @@ export const useHistoryChatStore = defineStore('history_chat_msg', () => {
                 
                 // 遍历所有事件，按title分组，并过滤掉heartbeat类型的事件
                 lastMsg.events.forEach((event: EventData) => {
+                  const toolOutput = parseToolOutputFromEvent(event)
+                  if (toolOutput) {
+                    chatMsg.toolOutputs = appendToolOutputCard(chatMsg.toolOutputs || [], toolOutput)
+                    return
+                  }
+
+                  const executionRecord = parseExecutionRecordFromEvent(event)
+                  if (executionRecord) {
+                    chatMsg.executionRecords = upsertExecutionRecord(
+                      chatMsg.executionRecords || [],
+                      executionRecord,
+                    )
+                    return
+                  }
+
                   // 跳过heartbeat类型的事件
                   if (event.type === 'heartbeat') return;
                   
@@ -95,6 +116,7 @@ export const useHistoryChatStore = defineStore('history_chat_msg', () => {
               }
             }
             
+            hydrateToolOutputCardsFromMessage(chatMsg)
             chatArr.value.push(chatMsg)
             continue
           }
@@ -106,6 +128,8 @@ export const useHistoryChatStore = defineStore('history_chat_msg', () => {
           const chatMsg: ChatMessage = {
             personMessage: { content: userMsg.role === 'user' ? userMsg.content : '' },
             aiMessage: { content: aiMsg.role === 'assistant' ? aiMsg.content : '' },
+            toolOutputs: [],
+            executionRecords: [],
             eventInfo: []
           }
           
@@ -116,6 +140,21 @@ export const useHistoryChatStore = defineStore('history_chat_msg', () => {
             
             // 遍历所有事件，按title分组，并过滤掉heartbeat类型的事件
             aiMsg.events.forEach((event: EventData) => {
+              const toolOutput = parseToolOutputFromEvent(event)
+              if (toolOutput) {
+                chatMsg.toolOutputs = appendToolOutputCard(chatMsg.toolOutputs || [], toolOutput)
+                return
+              }
+
+              const executionRecord = parseExecutionRecordFromEvent(event)
+              if (executionRecord) {
+                chatMsg.executionRecords = upsertExecutionRecord(
+                  chatMsg.executionRecords || [],
+                  executionRecord,
+                )
+                return
+              }
+
               // 跳过heartbeat类型的事件
               if (event.type === 'heartbeat') return;
               
@@ -141,22 +180,32 @@ export const useHistoryChatStore = defineStore('history_chat_msg', () => {
             });
           }
           
+          hydrateToolOutputCardsFromMessage(chatMsg)
           chatArr.value.push(chatMsg)
         }
         
         console.log('【HistoryChat】处理后的消息数组:', chatArr.value)
       } else {
         console.error('【HistoryChat】API返回错误:', response.data)
-        error.value = '获取历史消息失败'
-        ElMessage.error('获取历史消息失败')
+        error.value = response.data.status_message || '获取历史消息失败'
+        if (response.data.status_code === 404) {
+          resetDialogState()
+          ElMessage.error(response.data.status_message || '当前会话不存在或已失效，请重新选择或创建会话')
+          return { ok: false, notFound: true }
+        }
+        ElMessage.error(response.data.status_message || '获取历史消息失败')
+        return { ok: false, notFound: false }
       }
     } catch (err) {
       console.error('【HistoryChat】获取历史消息出错:', err)
       error.value = '获取历史消息出错'
       ElMessage.error('获取历史消息出错，请重试')
+      return { ok: false, notFound: false }
     } finally {
       loading.value = false
     }
+
+    return { ok: true, notFound: false }
   }
   
   /**
@@ -166,11 +215,21 @@ export const useHistoryChatStore = defineStore('history_chat_msg', () => {
     chatArr.value = []
     error.value = ''
   }
+
+  function resetDialogState() {
+    chatArr.value = []
+    dialogId.value = ''
+    name.value = ''
+    logo.value = ''
+    loading.value = false
+    error.value = ''
+  }
   
   return { 
     chatArr, 
     HistoryChat,
     clear,
+    resetDialogState,
     dialogId,
     name,
     logo,
@@ -181,5 +240,3 @@ export const useHistoryChatStore = defineStore('history_chat_msg', () => {
 {
   persist: true
 })
-
-

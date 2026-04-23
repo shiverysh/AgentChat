@@ -113,7 +113,7 @@ class ToolService:
     ):
         try:
             tool = await ToolDao.get_tool_by_id(tool_id=tool_id)
-            return tool.tool_id
+            return tool.user_id
         except Exception as err:
             raise ValueError(f'Get user by tool Id appear Error: {err}')
 

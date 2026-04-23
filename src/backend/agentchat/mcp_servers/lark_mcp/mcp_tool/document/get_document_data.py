@@ -1,21 +1,24 @@
-import json
-import lark_oapi as lark
 from lark_oapi.api.docx.v1 import *
 from pydantic import Field
-from typing import Optional
+
+from .common import get_document_url
+from ..utils.response import (
+    build_error_response,
+    build_lark_client,
+    build_request_option,
+    build_success_response,
+)
 
 
 def get_document(
         document_id: str = Field(..., description="文档ID"),
         app_id: str = Field(None, description="应用唯一标识，默认从用户配置中自动获取，无需额外传参"),
-        app_secret: str = Field(None, description="应用密钥，默认从用户配置中自动获取，无需额外传参")
+        app_secret: str = Field(None, description="应用密钥，默认从用户配置中自动获取，无需额外传参"),
+        user_access_token: str = Field(None, description="飞书用户访问令牌；配置后会以用户身份读取文档内容。"),
 ):
     """获取文档内容，成功返回文档内容，失败返回报错信息"""
-    client = lark.Client.builder() \
-        .app_id(app_id) \
-        .app_secret(app_secret) \
-        .log_level(lark.LogLevel.DEBUG) \
-        .build()
+    client = build_lark_client(app_id, app_secret)
+    option = build_request_option(user_access_token)
 
     # 构造请求对象
     request: RawContentDocumentRequest = RawContentDocumentRequest.builder() \
@@ -24,13 +27,18 @@ def get_document(
         .build()
 
     # 发起请求
-    response: RawContentDocumentResponse = client.docx.v1.document.raw_content(request)
+    response: RawContentDocumentResponse = client.docx.v1.document.raw_content(request, option)
 
     # 处理失败返回
     if not response.success():
-        error_message = f"client.docx.v1.document.raw_content failed, code: {response.code}, msg: {response.msg}, log_id: {response.get_log_id()}, resp: \n{json.dumps(json.loads(response.raw.content), indent=4, ensure_ascii=False)}"
-        return error_message
+        return build_error_response("client.docx.v1.document.raw_content", response)
 
-    # 处理业务结果
-    lark.logger.info(lark.JSON.marshal(response.data, indent=4))
-    return lark.JSON.marshal(response.data, indent=4)
+    return build_success_response(
+        data=response.data,
+        response=response,
+        user_access_token=user_access_token,
+        resource_name="文档",
+        extra={
+            "document_url": get_document_url(client, document_id, option),
+        },
+    )

@@ -1,20 +1,21 @@
-from lark_mcp.mcp_tool.user_info.batch_get_id_user import get_user_info_request
-from lark_mcp.mcp_tool.user_info.get_user_info import batch_get_user_info
-from lark_mcp.mcp_tool.document.create_document import create_document
-from lark_mcp.mcp_tool.document.get_document_data import get_document
-from lark_mcp.mcp_tool.folder.create_folder import create_folder
-from lark_mcp.mcp_tool.folder.list_folder_files import list_folder_files
-from lark_mcp.mcp_tool.message.create_message import create_message
-from lark_mcp.mcp_tool.calendar.create_calendar import create_calendar
-from lark_mcp.mcp_tool.calendar.delete_calendar import delete_calendar
-from lark_mcp.mcp_tool.calendar.get_calendar_info import get_calendar_info
-from lark_mcp.mcp_tool.calendar.get_calendar_list import get_calendars_list
-from lark_mcp.mcp_tool.calendar.update_calendar import update_calendar
-from lark_mcp.mcp_tool.calendar_event.create_calendar_event import create_calendar_event
-from lark_mcp.mcp_tool.calendar_event.append_calendar_event_attendees import append_calendar_event_attendee
-from lark_mcp.mcp_tool.calendar_event.get_calendar_event_info import get_calendar_event
-from lark_mcp.mcp_tool.calendar_event.update_calendar_event import update_calendar_event
-from lark_mcp.mcp_tool.calendar_event.delete_calendar_event import delete_calendar_event
+from .mcp_tool.user_info.batch_get_id_user import get_user_info_request
+from .mcp_tool.user_info.get_user_info import batch_get_user_info
+from .mcp_tool.document.create_document import create_document
+from .mcp_tool.document.get_document_data import get_document
+from .mcp_tool.document.write_document_content import write_document_content
+from .mcp_tool.folder.create_folder import create_folder
+from .mcp_tool.folder.list_folder_files import list_folder_files
+from .mcp_tool.message.create_message import create_message
+from .mcp_tool.calendar.create_calendar import create_calendar
+from .mcp_tool.calendar.delete_calendar import delete_calendar
+from .mcp_tool.calendar.get_calendar_info import get_calendar_info
+from .mcp_tool.calendar.get_calendar_list import get_calendars_list
+from .mcp_tool.calendar.update_calendar import update_calendar
+from .mcp_tool.calendar_event.create_calendar_event import create_calendar_event
+from .mcp_tool.calendar_event.append_calendar_event_attendees import append_calendar_event_attendee
+from .mcp_tool.calendar_event.get_calendar_event_info import get_calendar_event
+from .mcp_tool.calendar_event.update_calendar_event import update_calendar_event
+from .mcp_tool.calendar_event.delete_calendar_event import delete_calendar_event
 from mcp.server.fastmcp import FastMCP
 
 
@@ -40,6 +41,7 @@ def register_mcp_server(mcp: FastMCP):
     # 文档管理
     mcp.tool(description=create_document.__doc__)(create_document)
     mcp.tool(description=get_document.__doc__)(get_document)
+    mcp.tool(description=write_document_content.__doc__)(write_document_content)
 
     # 文件夹管理
     mcp.tool(description=create_folder.__doc__)(create_folder)

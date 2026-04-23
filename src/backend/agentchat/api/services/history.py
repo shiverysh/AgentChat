@@ -2,6 +2,8 @@ from typing import List
 from uuid import uuid4
 from langchain_core.messages import BaseMessage, AIMessage, HumanMessage
 
+from agentchat.api.errcode.base import NotFoundError, UnAuthorizedError
+from agentchat.api.services.dialog import DialogService
 from agentchat.database.dao.dialog import DialogDao
 from agentchat.database.dao.history import HistoryDao
 from agentchat.services.rag.es_client import client as es_client
@@ -122,8 +124,10 @@ class HistoryService:
     async def get_short_term_messages(cls, dialog_id, user_id: str):
         """通过上次总结的时间来获取短期记忆, summary_last_time"""
         db_dialog = await DialogDao.select_dialog_by_id(dialog_id)
+        if not db_dialog:
+            raise NotFoundError.http_exception(DialogService.DIALOG_NOT_FOUND_MESSAGE)
         if db_dialog.user_id != user_id:
-            raise ValueError(f"没有权限获取 {dialog_id} 的对话信息")
+            raise UnAuthorizedError.http_exception(f"没有权限获取 {dialog_id} 的对话信息")
 
         short_term_messages = await HistoryDao.get_short_term_messages(dialog_id, db_dialog.summary_last_time)
         messages: List[BaseMessage] = []

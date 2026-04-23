@@ -2,6 +2,7 @@ from typing import List
 
 from agentchat.database.dao.workspace_session import WorkSpaceSession, WorkSpaceSessionDao
 from agentchat.database.models.workspace_session import WorkSpaceSessionCreate
+from agentchat.database.models.user import AdminUser
 
 
 class WorkSpaceSessionService:
@@ -34,6 +35,8 @@ class WorkSpaceSessionService:
         result = await WorkSpaceSessionDao.get_workspace_session_from_id(session_id)
         if result is None:
             return None
+        if result.user_id != user_id and user_id != AdminUser:
+            raise ValueError("没有权限访问")
         return result.to_dict()
 
     @classmethod

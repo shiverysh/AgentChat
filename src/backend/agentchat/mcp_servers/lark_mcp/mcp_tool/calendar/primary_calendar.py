@@ -2,10 +2,14 @@ import json
 
 import lark_oapi as lark
 from lark_oapi.api.calendar.v4 import PrimaryCalendarRequest, PrimaryCalendarResponse
+from ..utils.response import build_request_option, build_user_token_required_error, has_user_access_token
 
 
 # 该函数不接入MCP，是其他MCP工具调用该函数所使用
-def get_primary_calendar(app_id: str, app_secret: str):
+def get_primary_calendar(app_id: str, app_secret: str, user_access_token: str | None = None):
+    if not has_user_access_token(user_access_token):
+        raise ValueError(build_user_token_required_error("读取飞书主日历"))
+
     # 创建client
     client = lark.Client.builder() \
         .app_id(app_id) \
@@ -18,7 +22,10 @@ def get_primary_calendar(app_id: str, app_secret: str):
         .build()
 
     # 发起请求
-    response: PrimaryCalendarResponse = client.calendar.v4.calendar.primary(request)
+    response: PrimaryCalendarResponse = client.calendar.v4.calendar.primary(
+        request,
+        build_request_option(user_access_token),
+    )
 
     # 处理失败返回
     if not response.success():

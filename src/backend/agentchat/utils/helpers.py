@@ -76,11 +76,43 @@ def check_or_create(path):
     else:
         os.makedirs(path)
 
-def build_completion_user_input(user_input, file_url):
-    if file_url:
-        return f"{user_input}, 上传的文件链接：{file_url}"
-    else:
+def build_storage_file_url(object_name: str) -> str:
+    base_url = app_settings.storage.active.base_url.rstrip("/")
+    return f"{base_url}/{object_name.lstrip('/')}"
+
+
+def build_completion_user_input(user_input, file_url, uploaded_file_context=None):
+    if not file_url:
         return user_input
+
+    sections = [user_input]
+    file_context_prefix = (
+        "[用户上传文件]\n"
+        f"文件链接：{file_url}\n"
+        "说明：如需更高质量的 OCR、扫描件识别、双栏版面或复杂表格解析，可优先调用 mineru_parse。"
+    )
+
+    if uploaded_file_context and uploaded_file_context.get("content"):
+        file_name = uploaded_file_context.get("file_name", "未命名文件")
+        file_type = uploaded_file_context.get("file_type", "unknown")
+        note = "以下是系统从上传文件中提取的正文，请优先基于这部分内容完成分析。"
+        if uploaded_file_context.get("is_truncated"):
+            note += " 文件内容较长，已截取核心正文。"
+
+        sections.append(
+            f"{file_context_prefix}\n"
+            f"文件名：{file_name}\n"
+            f"文件类型：{file_type}\n"
+            f"{note}\n"
+            f"{uploaded_file_context['content']}"
+        )
+        return "\n\n".join(section for section in sections if section)
+
+    sections.append(
+        f"{file_context_prefix}\n"
+        "补充说明：系统暂未成功解析文件正文，请优先尝试 mineru_parse。"
+    )
+    return "\n\n".join(section for section in sections if section)
 
 def init_dir(path):
     try:

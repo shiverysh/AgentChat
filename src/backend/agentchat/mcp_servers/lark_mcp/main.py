@@ -4,7 +4,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 from mcp.server.fastmcp import FastMCP
 
-from lark_mcp.mcp_server import register_mcp_server
+from .mcp_server import register_mcp_server
 
 mcp = FastMCP("Lark MCP Server")
 
